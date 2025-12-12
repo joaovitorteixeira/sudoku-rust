@@ -12,7 +12,13 @@ fn main() {
     let board = sudoku::board::SudokuBoard::new(board_file);
 
     match board {
-        Ok(board) => println!("{:}", board),
+        Ok(mut board) => {
+            println!("{:}", board);
+            match board.update_value(4, 4, Some(4)) {
+                Ok(()) => println!("{:}", board),
+                Err(message) => panic!("{message}"),
+            };
+        }
         Err(message) => panic!("{message}"),
     }
 }
