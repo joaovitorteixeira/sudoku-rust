@@ -1,7 +1,7 @@
 use std::{
     fs::read_to_string,
-    sync::{mpsc},
-    thread::{self},
+    sync::mpsc,
+    thread::{self}, time::Duration,
 };
 
 use crate::cli::game_updater::GameUpdater;
@@ -24,9 +24,15 @@ fn main() {
             thread::spawn(|| game_updater.listen());
 
             match board.update_value(4, 4, Some(6)) {
-                Ok(_) => return,
+                Ok(_) => (),
                 Err(message) => panic!("{message}"),
             }
+            thread::sleep(Duration::from_millis(500));
+            match board.update_value(1, 1, Some(4)) {
+                Ok(_) => (),
+                Err(message) => panic!("{message}"),
+            }
+            thread::sleep(Duration::from_millis(500));
         }
         Err(message) => panic!("{message}"),
     }

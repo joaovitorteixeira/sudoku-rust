@@ -1,4 +1,4 @@
-use std::sync::{mpsc::Receiver};
+use std::sync::mpsc::Receiver;
 
 pub struct GameUpdater {
     board_rx: Receiver<String>,
@@ -10,11 +10,11 @@ impl GameUpdater {
     }
 
     pub fn listen(self) -> Result<(), String> {
-        loop {
-            match self.board_rx.recv() {
-                Ok(message) => println!("{message}"),
-                Err(_) => return Err("Channel is disconnected".into()),
-            }
+        for message in self.board_rx {
+            print!("{}[2J", 27 as char);
+            println!("{message}");
         }
+
+        Ok(())
     }
 }
