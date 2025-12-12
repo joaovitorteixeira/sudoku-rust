@@ -143,7 +143,9 @@ impl SudokuBoard {
 
     fn is_valid_insertion(&mut self, x: usize, y: usize, new_value: Option<u8>) -> bool {
         if let Some(value) = new_value {
-            return self.is_valid_box(x, y, value);
+            return self.is_valid_box(x, y, value)
+                && self.is_valid_line(x, value)
+                && self.is_valid_column(y, value);
         } else {
             return true;
         }
@@ -155,6 +157,30 @@ impl SudokuBoard {
             let result = lines.iter().all(|&cell| cell.value != Some(new_value));
             return result;
         })
+    }
+
+    fn is_valid_line(&self, x: usize, new_value: u8) -> bool {
+        for y in 0..Self::BOARD_COLUMN_SIZE.into() {
+            let cell = self.find_cell_from_coordinates(x, y).unwrap();
+
+            if cell.value == Some(new_value) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    fn is_valid_column(&self, y: usize, new_value: u8) -> bool {
+        for x in 0..Self::BOARD_COLUMN_SIZE.into() {
+            let cell = self.find_cell_from_coordinates(x, y).unwrap();
+
+            if cell.value == Some(new_value) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
 

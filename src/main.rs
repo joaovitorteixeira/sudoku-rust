@@ -14,7 +14,7 @@ fn main() {
     match board {
         Ok(mut board) => {
             println!("{:}", board);
-            match board.update_value(4, 4, Some(4)) {
+            match board.update_value(4, 4, Some(6)) {
                 Ok(()) => println!("{:}", board),
                 Err(message) => panic!("{message}"),
             };
