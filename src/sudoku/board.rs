@@ -1,11 +1,11 @@
 use colored::Colorize;
-use std::fmt;
+use std::{fmt, sync::mpsc::Sender};
 
 type Box = [[SudokuCell; 3]; 3];
 type Board = [[Box; 3]; 3];
 
 #[derive(Debug, Clone, Copy)]
-struct SudokuCell {
+pub struct SudokuCell {
     value: Option<u8>,
     editable: bool,
 }
@@ -31,6 +31,7 @@ impl SudokuCell {
 #[derive(Debug)]
 pub struct SudokuBoard {
     board: Board,
+    board_tx: Sender<String>,
 }
 
 impl SudokuBoard {
@@ -64,13 +65,14 @@ impl SudokuBoard {
             .into()
     }
 
-    pub fn new(list: Vec<Vec<Option<u8>>>) -> Result<Self, String> {
+    pub fn new(list: Vec<Vec<Option<u8>>>, board_tx: Sender<String>) -> Result<Self, String> {
         if list.len() != 9 {
             return Err("The provided list must have 9 lines".to_string());
         }
 
         let sudoku_board: SudokuBoard = SudokuBoard {
             board: Self::initialize_board(),
+            board_tx,
         };
 
         for (line_index, row) in list.iter().enumerate() {
@@ -131,6 +133,12 @@ impl SudokuBoard {
         if let Ok(cell) = cell_result {
             if let Ok(cell_ptr) = cell.as_mut_ptr() {
                 cell_ptr.value = value;
+
+                let result = self.board_tx.send(format!("{:}", self));
+
+                if let Some(_) = result.err() {
+                    return Err("Channel is disconnected".into());
+                }
 
                 Ok(())
             } else {

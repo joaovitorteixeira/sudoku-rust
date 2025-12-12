@@ -1,23 +1,32 @@
-use std::fs::read_to_string;
+use std::{
+    fs::read_to_string,
+    sync::{mpsc},
+    thread::{self},
+};
 
-pub mod sudoku;
+use crate::cli::game_updater::GameUpdater;
+
+mod cli;
+mod sudoku;
 
 fn main() {
+    let (board_tx, board_rx) = mpsc::channel::<String>();
     let board_file_result = read_file("input.txt".to_owned());
     let board_file = match board_file_result {
         Ok(board_file) => board_file,
         Err(msg) => panic!("{}", msg),
     };
-
-    let board = sudoku::board::SudokuBoard::new(board_file);
+    let board = sudoku::board::SudokuBoard::new(board_file, board_tx);
 
     match board {
         Ok(mut board) => {
-            println!("{:}", board);
+            let game_updater = GameUpdater::new(board_rx);
+            thread::spawn(|| game_updater.listen());
+
             match board.update_value(4, 4, Some(6)) {
-                Ok(()) => println!("{:}", board),
+                Ok(_) => return,
                 Err(message) => panic!("{message}"),
-            };
+            }
         }
         Err(message) => panic!("{message}"),
     }
