@@ -6,8 +6,10 @@ type Board = [[Box; 3]; 3];
 
 #[derive(Debug, Clone, Copy)]
 pub struct SudokuCell {
-    value: Option<u8>,
+    pub value: Option<u8>,
     editable: bool,
+    pub x: usize,
+    pub y: usize,
 }
 
 impl SudokuCell {
@@ -15,6 +17,8 @@ impl SudokuCell {
         SudokuCell {
             value,
             editable: if value.is_some() { false } else { true },
+            x: 0,
+            y: 0,
         }
     }
 
@@ -86,6 +90,8 @@ impl SudokuBoard {
                     if let Ok(cell_ptr) = cell.as_mut_ptr() {
                         cell_ptr.value = *value;
                         cell_ptr.editable = value.is_none();
+                        cell_ptr.x = line_index;
+                        cell_ptr.y = column_index;
                     } else {
                         return Err("Unexpected error when casting".to_string());
                     }
@@ -106,7 +112,7 @@ impl SudokuBoard {
         sudoku_box
     }
 
-    fn find_cell_from_coordinates(&self, x: usize, y: usize) -> Result<&SudokuCell, String> {
+    pub fn find_cell_from_coordinates(&self, x: usize, y: usize) -> Result<&SudokuCell, String> {
         let box_row_index = x % 3;
         let box_column_index = y % 3;
         let sudoku_box: &Box = self.find_box_from_coordinate(x, y);
@@ -189,6 +195,21 @@ impl SudokuBoard {
         }
 
         return true;
+    }
+
+    pub fn get_editable_cells(&self) -> Vec<SudokuCell> {
+        let mut editable_cells  = vec![];
+        for x in 0..Self::BOARD_COLUMN_SIZE.into() {
+            for y in 0..Self::BOARD_COLUMN_SIZE.into() {
+                let cell = self.find_cell_from_coordinates(x, y).unwrap();
+
+                if cell.editable {
+                    editable_cells.push(*cell);
+                }
+            }
+        }
+
+        editable_cells
     }
 }
 
