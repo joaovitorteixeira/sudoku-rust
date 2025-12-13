@@ -11,6 +11,7 @@ mod sudoku;
 
 fn main() {
     let (board_tx, board_rx) = mpsc::channel::<String>();
+    let (throttle_enabled, throttle_ms) = read_args();
     let board_file_result = read_file("input.txt".to_owned());
     let board_file = match board_file_result {
         Ok(board_file) => board_file,
@@ -20,8 +21,10 @@ fn main() {
 
     match board {
         Ok(mut board) => {
-            let game_updater = GameUpdater::new(board_rx);
-            thread::spawn(|| game_updater.listen());
+            let game_updater = GameUpdater::new(board_rx, throttle_enabled, throttle_ms);
+            thread::spawn(move || {
+                let _ = game_updater.listen();
+            });
 
             let _ = thread::spawn(move || {
                 let backtracking = Backtracking::new(&mut board);
@@ -31,6 +34,29 @@ fn main() {
         }
         Err(message) => panic!("{message}"),
     }
+}
+
+fn read_args() -> (Option<bool>, Option<u64>) {
+    let mut throttle_enabled: Option<bool> = None;
+    let mut throttle_ms: Option<u64> = None;
+    let mut args = std::env::args().skip(1);
+    
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--throttle" => throttle_enabled = Some(true),
+            "--throttle-ms" => {
+                if let Some(val) = args.next() {
+                    if let Ok(v) = val.parse::<u64>() {
+                        throttle_enabled = Some(true);
+                        throttle_ms = Some(v);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    (throttle_enabled, throttle_ms)
 }
 
 fn read_file(file_path: String) -> Result<Vec<Vec<Option<u8>>>, String> {

@@ -1,6 +1,7 @@
 use std::{thread, time::Duration};
 
-use crate::sudoku::board::{SudokuBoard};
+use crate::sudoku::board::SudokuBoard;
+use crate::sudoku::algorithms::perf::PerfTracker;
 
 pub struct Backtracking<'a> {
     board: &'a mut SudokuBoard,
@@ -18,6 +19,9 @@ impl<'a> Backtracking<'a> {
 
     pub fn resolve(self) {
         let mut backtrack_index = 0usize;
+        let mut perf = PerfTracker::new();
+
+        perf.start();
 
         while self.editable_cells.len() > backtrack_index {
             let (mut x, mut y) = self.editable_cells[backtrack_index];
@@ -27,7 +31,9 @@ impl<'a> Backtracking<'a> {
             };
 
             while current_value.unwrap() <= 9 {
-                thread::sleep(Duration::from_millis(1));
+                // thread::sleep(Duration::from_millis(1));
+                perf.incr();
+
                 match self.board.update_value(x, y, current_value) {
                     Ok(_) => {
                         backtrack_index += 1;
@@ -36,6 +42,7 @@ impl<'a> Backtracking<'a> {
                     Err(_) => {
                         if current_value.unwrap() >= 9 {
                             let _ = self.board.update_value(x, y, None).unwrap();
+                            perf.incr();
 
                             backtrack_index -= 1;
                             (x, y) = self.editable_cells[backtrack_index];
@@ -57,5 +64,9 @@ impl<'a> Backtracking<'a> {
                 backtrack_index -= 1;
             }
         }
+
+        perf.finish();
+        thread::sleep(Duration::from_secs(1));
+        perf.print_summary();
     }
 }
