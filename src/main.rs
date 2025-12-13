@@ -40,7 +40,7 @@ fn read_args() -> (Option<bool>, Option<u64>) {
     let mut throttle_enabled: Option<bool> = None;
     let mut throttle_ms: Option<u64> = None;
     let mut args = std::env::args().skip(1);
-    
+
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--throttle" => throttle_enabled = Some(true),

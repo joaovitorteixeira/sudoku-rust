@@ -1,7 +1,7 @@
 use std::{thread, time::Duration};
 
-use crate::sudoku::board::SudokuBoard;
 use crate::sudoku::algorithms::perf::PerfTracker;
+use crate::sudoku::board::SudokuBoard;
 
 pub struct Backtracking<'a> {
     board: &'a mut SudokuBoard,
