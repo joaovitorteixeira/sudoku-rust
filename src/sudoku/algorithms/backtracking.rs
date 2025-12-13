@@ -37,13 +37,13 @@ impl<'a> Backtracking<'a> {
                 cell.value.or(Some(1))
             };
 
-            while current_value.unwrap() <= 9 {
+            while current_value.unwrap() <= SudokuBoard::BOARD_MAX_NUMBER as u8 {
                 // thread::sleep(Duration::from_millis(1));
                 if this.update_and_incr(&mut perf, x, y, current_value) {
                     backtrack_index += 1;
                     break;
                 } else {
-                    if current_value.unwrap() >= 9 {
+                    if current_value.unwrap() >= SudokuBoard::BOARD_MAX_NUMBER as u8  {
                         let _ = this.board.update_value(x, y, None).unwrap();
                         perf.incr();
 
@@ -61,7 +61,7 @@ impl<'a> Backtracking<'a> {
                 }
             }
 
-            if current_value.unwrap() > 9 {
+            if current_value.unwrap() > SudokuBoard::BOARD_MAX_NUMBER as u8 {
                 let _ = this.board.update_value(x, y, None).unwrap();
                 perf.incr();
                 backtrack_index -= 1;

@@ -1,8 +1,10 @@
 use colored::Colorize;
 use std::{fmt, sync::mpsc::Sender};
 
-type Box = [[SudokuCell; 3]; 3];
-type Board = [[Box; 3]; 3];
+const BOARD_N: usize = 3;
+
+type Box = [[SudokuCell; BOARD_N]; BOARD_N];
+type Board = [[Box; BOARD_N]; BOARD_N];
 
 #[derive(Debug, Clone, Copy)]
 pub struct SudokuCell {
@@ -40,12 +42,13 @@ pub struct SudokuBoard {
 
 impl SudokuBoard {
     const BOARD_DIVIDER: &str = " |";
-    const BOARD_COLUMN_SIZE: u16 = 9;
-    const BOARD_LENGTH: u16 =
-        (Self::BOARD_COLUMN_SIZE * 2 - 1) + Self::BOARD_DIVIDER.len() as u16 * 2;
+    pub const BOARD_N: usize = BOARD_N;
+    pub const BOARD_MAX_NUMBER: usize = Self::BOARD_N.pow(2);
+    const BOARD_LENGTH: usize =
+        (Self::BOARD_MAX_NUMBER * 2 - 1) + Self::BOARD_DIVIDER.len() * 2;
 
     fn initialize_box() -> Box {
-        ([[SudokuCell::new(None); 3]; 3]).into()
+        ([[SudokuCell::new(None); Self::BOARD_N]; Self::BOARD_N]).into()
     }
 
     fn initialize_board() -> Board {
@@ -70,7 +73,7 @@ impl SudokuBoard {
     }
 
     pub fn new(list: Vec<Vec<Option<u8>>>, board_tx: Sender<String>) -> Result<Self, String> {
-        if list.len() != 9 {
+        if list.len() != Self::BOARD_MAX_NUMBER {
             return Err("The provided list must have 9 lines".to_string());
         }
 
@@ -80,7 +83,7 @@ impl SudokuBoard {
         };
 
         for (line_index, row) in list.iter().enumerate() {
-            if row.len() != Self::BOARD_COLUMN_SIZE.into() {
+            if row.len() != Self::BOARD_MAX_NUMBER.into() {
                 return Err("The provided list must have 9 lines".to_string());
             }
 
@@ -105,16 +108,16 @@ impl SudokuBoard {
     }
 
     fn find_box_from_coordinate(&self, x: usize, y: usize) -> &Box {
-        let board_row_index = x / 3;
-        let board_column_index = y / 3;
+        let board_row_index = x / Self::BOARD_N;
+        let board_column_index = y / Self::BOARD_N;
         let sudoku_box: &Box = &self.board[board_row_index][board_column_index];
 
         sudoku_box
     }
 
     pub fn find_cell_from_coordinates(&self, x: usize, y: usize) -> Result<&SudokuCell, String> {
-        let box_row_index = x % 3;
-        let box_column_index = y % 3;
+        let box_row_index = x % Self::BOARD_N;
+        let box_column_index = y % Self::BOARD_N;
         let sudoku_box: &Box = self.find_box_from_coordinate(x, y);
         let cell_result: Option<&SudokuCell> = Some(&sudoku_box[box_row_index][box_column_index]);
 
@@ -126,7 +129,7 @@ impl SudokuBoard {
     }
 
     pub fn update_value(&mut self, x: usize, y: usize, value: Option<u8>) -> Result<(), String> {
-        if x >= Self::BOARD_COLUMN_SIZE.into() || y >= Self::BOARD_COLUMN_SIZE.into() {
+        if x >= Self::BOARD_MAX_NUMBER.into() || y >= Self::BOARD_MAX_NUMBER.into() {
             return Err(format!("Invalid coordinates ({}, {})", x, y));
         }
 
@@ -174,7 +177,7 @@ impl SudokuBoard {
     }
 
     fn is_valid_line(&self, x: usize, new_value: u8) -> bool {
-        for y in 0..Self::BOARD_COLUMN_SIZE.into() {
+        for y in 0..Self::BOARD_MAX_NUMBER.into() {
             let cell = self.find_cell_from_coordinates(x, y).unwrap();
 
             if cell.value == Some(new_value) {
@@ -186,7 +189,7 @@ impl SudokuBoard {
     }
 
     fn is_valid_column(&self, y: usize, new_value: u8) -> bool {
-        for x in 0..Self::BOARD_COLUMN_SIZE.into() {
+        for x in 0..Self::BOARD_MAX_NUMBER.into() {
             let cell = self.find_cell_from_coordinates(x, y).unwrap();
 
             if cell.value == Some(new_value) {
@@ -199,8 +202,8 @@ impl SudokuBoard {
 
     pub fn get_editable_cells(&self) -> Vec<(usize, usize)> {
         let mut editable_cells = vec![];
-        for x in 0..Self::BOARD_COLUMN_SIZE.into() {
-            for y in 0..Self::BOARD_COLUMN_SIZE.into() {
+        for x in 0..Self::BOARD_MAX_NUMBER.into() {
+            for y in 0..Self::BOARD_MAX_NUMBER.into() {
                 let cell = self.find_cell_from_coordinates(x, y).unwrap();
 
                 if cell.editable {
@@ -219,14 +222,14 @@ impl fmt::Display for SudokuBoard {
         let mut line_index: usize = 0;
         let mut previous_board_row_index: Option<usize> = None;
 
-        while line_index < Self::BOARD_COLUMN_SIZE.into() {
+        while line_index < Self::BOARD_MAX_NUMBER.into() {
             let mut line_str = String::new();
-            let board_row_index = line_index / 3;
+            let board_row_index = line_index / Self::BOARD_N;
             let mut column_index: usize = 0;
 
             while column_index < 3 {
                 let sudoku_box = self.find_box_from_coordinate(line_index, column_index * 3);
-                let box_line = &sudoku_box[line_index % 3];
+                let box_line = &sudoku_box[line_index % Self::BOARD_N];
                 let box_line_str = box_line.iter().fold("".to_string(), |acc, cell| {
                     let value = match cell.value {
                         Some(match_value) => {
