@@ -1,10 +1,10 @@
 use std::{thread, time::Duration};
 
-use crate::sudoku::board::{SudokuBoard, SudokuCell};
+use crate::sudoku::board::{SudokuBoard};
 
 pub struct Backtracking<'a> {
     board: &'a mut SudokuBoard,
-    editable_cells: Vec<SudokuCell>,
+    editable_cells: Vec<(usize, usize)>,
 }
 
 impl<'a> Backtracking<'a> {
@@ -20,30 +20,26 @@ impl<'a> Backtracking<'a> {
         let mut backtrack_index = 0usize;
 
         while self.editable_cells.len() > backtrack_index {
-            let mut cell = self.editable_cells[backtrack_index]; // TODO: how to get the reference instead of copy?
-            cell = *self
-                .board
-                .find_cell_from_coordinates(cell.x, cell.y)
-                .unwrap();
-            let mut current_value = cell.value.or(Some(1));
+            let (mut x, mut y) = self.editable_cells[backtrack_index];
+            let mut current_value = {
+                let cell = self.board.find_cell_from_coordinates(x, y).unwrap();
+                cell.value.or(Some(1))
+            };
 
             while current_value.unwrap() <= 9 {
                 thread::sleep(Duration::from_millis(1));
-                match self.board.update_value(cell.x, cell.y, current_value) {
+                match self.board.update_value(x, y, current_value) {
                     Ok(_) => {
                         backtrack_index += 1;
                         break;
                     }
                     Err(_) => {
                         if current_value.unwrap() >= 9 {
-                            let _ = self.board.update_value(cell.x, cell.y, None).unwrap();
+                            let _ = self.board.update_value(x, y, None).unwrap();
 
                             backtrack_index -= 1;
-                            cell = self.editable_cells[backtrack_index]; // TODO: how to get the reference instead of copy?
-                            cell = *self
-                                .board
-                                .find_cell_from_coordinates(cell.x, cell.y)
-                                .unwrap();
+                            (x, y) = self.editable_cells[backtrack_index];
+                            let cell = self.board.find_cell_from_coordinates(x, y).unwrap();
                             current_value = if cell.value.is_some() {
                                 Some(cell.value.unwrap() + 1)
                             } else {
@@ -57,7 +53,7 @@ impl<'a> Backtracking<'a> {
             }
 
             if current_value.unwrap() > 9 {
-                let _ = self.board.update_value(cell.x, cell.y, None).unwrap();
+                let _ = self.board.update_value(x, y, None).unwrap();
                 backtrack_index -= 1;
             }
         }

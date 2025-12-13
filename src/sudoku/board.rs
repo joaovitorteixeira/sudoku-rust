@@ -197,14 +197,14 @@ impl SudokuBoard {
         return true;
     }
 
-    pub fn get_editable_cells(&self) -> Vec<SudokuCell> {
+    pub fn get_editable_cells(&self) -> Vec<(usize, usize)> {
         let mut editable_cells = vec![];
         for x in 0..Self::BOARD_COLUMN_SIZE.into() {
             for y in 0..Self::BOARD_COLUMN_SIZE.into() {
                 let cell = self.find_cell_from_coordinates(x, y).unwrap();
 
                 if cell.editable {
-                    editable_cells.push(*cell);
+                    editable_cells.push((cell.x, cell.y));
                 }
             }
         }
