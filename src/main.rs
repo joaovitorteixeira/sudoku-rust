@@ -1,13 +1,10 @@
 use std::{
     fs::read_to_string,
     sync::mpsc,
-    thread::{self}
+    thread::{self},
 };
 
-use crate::{
-    cli::game_updater::GameUpdater,
-    sudoku::{algorithms::backtracking::Backtracking},
-};
+use crate::{cli::game_updater::GameUpdater, sudoku::algorithms::backtracking::Backtracking};
 
 mod cli;
 mod sudoku;
@@ -26,13 +23,11 @@ fn main() {
             let game_updater = GameUpdater::new(board_rx);
             thread::spawn(|| game_updater.listen());
 
-
             let _ = thread::spawn(move || {
                 let backtracking = Backtracking::new(&mut board);
                 backtracking.resolve();
-            }).join();
-            
-            
+            })
+            .join();
         }
         Err(message) => panic!("{message}"),
     }

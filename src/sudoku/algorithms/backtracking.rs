@@ -21,7 +21,10 @@ impl<'a> Backtracking<'a> {
 
         while self.editable_cells.len() > backtrack_index {
             let mut cell = self.editable_cells[backtrack_index]; // TODO: how to get the reference instead of copy?
-            cell = *self.board.find_cell_from_coordinates(cell.x, cell.y).unwrap();
+            cell = *self
+                .board
+                .find_cell_from_coordinates(cell.x, cell.y)
+                .unwrap();
             let mut current_value = cell.value.or(Some(1));
 
             while current_value.unwrap() <= 9 {
@@ -30,14 +33,17 @@ impl<'a> Backtracking<'a> {
                     Ok(_) => {
                         backtrack_index += 1;
                         break;
-                    },
+                    }
                     Err(_) => {
                         if current_value.unwrap() >= 9 {
                             let _ = self.board.update_value(cell.x, cell.y, None).unwrap();
 
                             backtrack_index -= 1;
-                            cell = self.editable_cells[backtrack_index];// TODO: how to get the reference instead of copy?
-                            cell = *self.board.find_cell_from_coordinates(cell.x, cell.y).unwrap();
+                            cell = self.editable_cells[backtrack_index]; // TODO: how to get the reference instead of copy?
+                            cell = *self
+                                .board
+                                .find_cell_from_coordinates(cell.x, cell.y)
+                                .unwrap();
                             current_value = if cell.value.is_some() {
                                 Some(cell.value.unwrap() + 1)
                             } else {
