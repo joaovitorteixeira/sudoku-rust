@@ -1,5 +1,7 @@
 # sudoku-rust
 
+![Backtrack Solution](./asset/trim.gif)
+
 A small Sudoku solver written in Rust as a learning project. The goal of this
 repository is to practice Rust idioms (ownership, borrowing, threads, channels)
 while implementing a working Sudoku solver and a tiny CLI-based UI.
