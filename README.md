@@ -44,20 +44,30 @@ cargo run --release
 
 CLI options:
 
-- `--throttle` — enable throttling of board print updates (useful for slow
-	machines or to visually follow the solver).
-- `--throttle-ms <ms>` — set throttle interval in milliseconds (also enables
-	throttling). Defaults to 100ms when enabled.
+- `--throttle-ms <ms>` — set the throttle interval in milliseconds for board
+	print updates. Defaults to 100ms if a value is not provided.
+- `--algorithm <name>` or `-a <name>` — select which solving algorithm to
+	use. Accepted values:
+	- `backtracking` or `bt` — run the straightforward backtracking solver.
+	- `candidate`, `candidateelection` or `ce` — run the candidate-election
+	  solver (default).
 
-Example with throttle set to 50ms:
+Examples:
+
+Run the solver with a 50ms throttle interval:
 
 ```bash
 cargo run --release -- --throttle-ms 50
 ```
 
+Run using the backtracking algorithm:
+
+```bash
+cargo run --release -- --algorithm backtracking
+```
+
 Notes: the project prints an ANSI-coloured board. Fixed (given) digits are
 printed in blue, solver-filled digits in yellow, and unknown cells in red.
-
 
 ## References
 
