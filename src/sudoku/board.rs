@@ -1,5 +1,6 @@
-use colored::Colorize;
-use std::{fmt, sync::mpsc::Sender};
+use std::sync::mpsc::Sender;
+
+use crate::cli::game_updater::CliChannelEvent;
 
 const BOARD_N: usize = 3;
 
@@ -9,7 +10,7 @@ type Board = [[Box; BOARD_N]; BOARD_N];
 #[derive(Debug, Clone, Copy)]
 pub struct SudokuCell {
     pub value: Option<u8>,
-    editable: bool,
+    pub editable: bool,
     pub x: usize,
     pub y: usize,
 }
@@ -27,14 +28,12 @@ impl SudokuCell {
 #[derive(Debug)]
 pub struct SudokuBoard {
     board: Board,
-    board_tx: Sender<String>,
+    board_tx: Sender<CliChannelEvent>,
 }
 
 impl SudokuBoard {
-    const BOARD_DIVIDER: &str = " |";
     pub const BOARD_N: usize = BOARD_N;
     pub const BOARD_MAX_NUMBER: usize = Self::BOARD_N.pow(2);
-    const BOARD_LENGTH: usize = (Self::BOARD_MAX_NUMBER * 2 - 1) + Self::BOARD_DIVIDER.len() * 2;
 
     fn initialize_box() -> Box {
         ([[SudokuCell::new(None); Self::BOARD_N]; Self::BOARD_N]).into()
@@ -61,7 +60,10 @@ impl SudokuBoard {
             .into()
     }
 
-    pub fn new(list: Vec<Vec<Option<u8>>>, board_tx: Sender<String>) -> Result<Self, String> {
+    pub fn new(
+        list: Vec<Vec<Option<u8>>>,
+        board_tx: Sender<CliChannelEvent>,
+    ) -> Result<Self, String> {
         if list.len() != Self::BOARD_MAX_NUMBER {
             return Err("The provided list must have 9 lines".to_string());
         }
@@ -147,19 +149,29 @@ impl SudokuBoard {
             return Err("Invalid Insertion".to_string());
         }
 
-        match self.find_cell_from_coordinates_mut(x, y) {
-            Ok(cell_ptr) => {
-                cell_ptr.value = value;
+        let result = {
+            match self.find_cell_from_coordinates_mut(x, y) {
+                Ok(cell_ptr) => {
+                    cell_ptr.value = value;
 
-                let result = self.board_tx.send(format!("{:}", self));
-
-                if let Some(_) = result.err() {
-                    return Err("Channel is disconnected".into());
+                    Ok(())
                 }
-
-                Ok(())
+                Err(e) => Err(e),
             }
-            Err(e) => Err(e),
+        };
+
+        result
+    }
+
+    pub fn finish(&self) {
+        for x in 0..Self::BOARD_MAX_NUMBER {
+            for y in 0..Self::BOARD_MAX_NUMBER {
+                let cell_result = self.find_cell_from_coordinates(x, y);
+
+                if let Ok(cell) = cell_result {
+                    let _ = self.board_tx.send(CliChannelEvent::Update(*cell));
+                }
+            }
         }
     }
 
@@ -218,60 +230,5 @@ impl SudokuBoard {
         }
 
         editable_cells
-    }
-}
-
-impl fmt::Display for SudokuBoard {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut output = String::new();
-        let mut line_index: usize = 0;
-        let mut previous_board_row_index: Option<usize> = None;
-
-        while line_index < Self::BOARD_MAX_NUMBER.into() {
-            let mut line_str = String::new();
-            let board_row_index = line_index / Self::BOARD_N;
-            let mut column_index: usize = 0;
-
-            while column_index < 3 {
-                let sudoku_box = self.find_box_from_coordinate(line_index, column_index * 3);
-                let box_line = &sudoku_box[line_index % Self::BOARD_N];
-                let box_line_str = box_line.iter().fold("".to_string(), |acc, cell| {
-                    let value = match cell.value {
-                        Some(match_value) => {
-                            if cell.editable {
-                                match_value.to_string().yellow()
-                            } else {
-                                match_value.to_string().blue()
-                            }
-                        }
-                        None => "?".to_string().red(),
-                    };
-
-                    if acc.len() == 0 {
-                        // Is first column?
-                        format!("{acc}{value}")
-                    } else {
-                        format!("{acc} {value}")
-                    }
-                });
-
-                line_str.push_str(&box_line_str);
-                line_str.push_str(&" |".on_white());
-                column_index += 1;
-            }
-
-            if previous_board_row_index != Some(board_row_index) {
-                previous_board_row_index = Some(board_row_index);
-                output.push_str(&"-".repeat(Self::BOARD_LENGTH.into()).on_white());
-                output.push_str("\n");
-            }
-
-            output.push_str(&line_str);
-            output.push_str("\n");
-
-            line_index += 1;
-        }
-
-        write!(f, "{}", output)
     }
 }

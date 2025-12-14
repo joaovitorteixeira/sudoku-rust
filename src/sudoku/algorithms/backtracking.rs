@@ -1,5 +1,3 @@
-use std::{thread, time::Duration};
-
 use crate::sudoku::algorithms::base_algorithms::BaseAlgorithms;
 use crate::sudoku::algorithms::perf::PerfTracker;
 use crate::sudoku::board::SudokuBoard;
@@ -78,7 +76,7 @@ impl<'a> BaseAlgorithms<'a> for Backtracking<'a> {
         }
 
         perf.finish();
-        thread::sleep(Duration::from_secs(1));
+        this.board.finish();
         perf.print_summary();
     }
 }

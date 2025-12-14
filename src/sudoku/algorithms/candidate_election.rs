@@ -1,5 +1,3 @@
-use std::{thread, time::Duration};
-
 use crate::sudoku::{
     algorithms::{base_algorithms::BaseAlgorithms, perf::PerfTracker},
     board::SudokuBoard,
@@ -25,7 +23,6 @@ impl<'a> CandidateElection<'a> {
         value: Option<u8>,
     ) -> bool {
         let res = self.board.update_value(x, y, value);
-        // thread::sleep(Duration::from_millis(1));
         perf.incr();
         res.is_ok()
     }
@@ -113,7 +110,7 @@ impl<'a> BaseAlgorithms<'a> for CandidateElection<'a> {
         }
 
         perf.finish();
-        thread::sleep(Duration::from_secs(1));
+        this.board.finish();
         perf.print_summary();
     }
 }

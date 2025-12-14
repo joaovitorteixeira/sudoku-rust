@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    cli::game_updater::GameUpdater,
+    cli::game_updater::{CliChannelEvent, GameUpdater},
     sudoku::algorithms::{
         backtracking::Backtracking, base_algorithms::BaseAlgorithms,
         candidate_election::CandidateElection,
@@ -22,22 +22,21 @@ mod cli;
 mod sudoku;
 
 fn main() {
-    let (board_tx, board_rx) = mpsc::channel::<String>();
-    let (throttle_enabled, throttle_ms, algorithm) = read_args();
+    let (board_tx, board_rx) = mpsc::channel::<CliChannelEvent>();
+    let (throttle_ms, algorithm) = read_args();
     let board_file_result = read_file("input.txt".to_owned());
     let board_file = match board_file_result {
         Ok(board_file) => board_file,
         Err(msg) => panic!("{}", msg),
     };
-    let board = sudoku::board::SudokuBoard::new(board_file, board_tx);
+    let board = sudoku::board::SudokuBoard::new(board_file, board_tx.clone());
+    let mut game_updater = GameUpdater::new(board_rx, throttle_ms);
+    let game_updater_thread = thread::spawn(move || {
+        let _ = game_updater.listen();
+    });
 
     match board {
         Ok(mut board) => {
-            let game_updater = GameUpdater::new(board_rx, throttle_enabled, throttle_ms);
-            thread::spawn(move || {
-                let _ = game_updater.listen();
-            });
-
             let alg = algorithm.unwrap_or(Algorithms::CandidateElection);
 
             let _ = thread::spawn(move || match alg {
@@ -54,21 +53,21 @@ fn main() {
         }
         Err(message) => panic!("{message}"),
     }
+
+    let _ = board_tx.send(CliChannelEvent::ForceLastPrint);
+    let _ = game_updater_thread.join();
 }
 
-fn read_args() -> (Option<bool>, Option<u64>, Option<Algorithms>) {
-    let mut throttle_enabled: Option<bool> = None;
+fn read_args() -> (Option<u64>, Option<Algorithms>) {
     let mut throttle_ms: Option<u64> = None;
     let mut algorithm: Option<Algorithms> = None;
     let mut args = std::env::args().skip(1);
 
     while let Some(arg) = args.next() {
         match arg.as_str() {
-            "--throttle" => throttle_enabled = Some(true),
             "--throttle-ms" => {
                 if let Some(val) = args.next() {
                     if let Ok(v) = val.parse::<u64>() {
-                        throttle_enabled = Some(true);
                         throttle_ms = Some(v);
                     }
                 }
@@ -88,7 +87,7 @@ fn read_args() -> (Option<bool>, Option<u64>, Option<Algorithms>) {
         }
     }
 
-    (throttle_enabled, throttle_ms, algorithm)
+    (throttle_ms, algorithm)
 }
 
 fn read_file(file_path: String) -> Result<Vec<Vec<Option<u8>>>, String> {

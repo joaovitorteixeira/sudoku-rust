@@ -41,7 +41,7 @@ impl PerfTracker {
 
     pub fn print_summary(&self) {
         let elapsed_str = match self.elapsed() {
-            Some(d) => format!("{:.3}s", d.as_secs_f64()),
+            Some(d) => format!("{:.6}s", d.as_secs_f64()),
             None => "not started".to_string(),
         };
 
