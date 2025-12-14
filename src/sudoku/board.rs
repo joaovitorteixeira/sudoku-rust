@@ -44,8 +44,7 @@ impl SudokuBoard {
     const BOARD_DIVIDER: &str = " |";
     pub const BOARD_N: usize = BOARD_N;
     pub const BOARD_MAX_NUMBER: usize = Self::BOARD_N.pow(2);
-    const BOARD_LENGTH: usize =
-        (Self::BOARD_MAX_NUMBER * 2 - 1) + Self::BOARD_DIVIDER.len() * 2;
+    const BOARD_LENGTH: usize = (Self::BOARD_MAX_NUMBER * 2 - 1) + Self::BOARD_DIVIDER.len() * 2;
 
     fn initialize_box() -> Box {
         ([[SudokuCell::new(None); Self::BOARD_N]; Self::BOARD_N]).into()
@@ -158,7 +157,7 @@ impl SudokuBoard {
         }
     }
 
-    fn is_valid_insertion(&mut self, x: usize, y: usize, new_value: Option<u8>) -> bool {
+    pub fn is_valid_insertion(&self, x: usize, y: usize, new_value: Option<u8>) -> bool {
         if let Some(value) = new_value {
             return self.is_valid_box(x, y, value)
                 && self.is_valid_line(x, value)
@@ -168,7 +167,7 @@ impl SudokuBoard {
         }
     }
 
-    fn is_valid_box(&mut self, x: usize, y: usize, new_value: u8) -> bool {
+    fn is_valid_box(&self, x: usize, y: usize, new_value: u8) -> bool {
         let sudoku_box = self.find_box_from_coordinate(x, y);
         sudoku_box.iter().all(|&lines| {
             let result = lines.iter().all(|&cell| cell.value != Some(new_value));

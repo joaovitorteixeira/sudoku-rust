@@ -1,5 +1,6 @@
 use std::{thread, time::Duration};
 
+use crate::sudoku::algorithms::base_algorithms::BaseAlgorithms;
 use crate::sudoku::algorithms::perf::PerfTracker;
 use crate::sudoku::board::SudokuBoard;
 
@@ -9,7 +10,21 @@ pub struct Backtracking<'a> {
 }
 
 impl<'a> Backtracking<'a> {
-    pub fn new(board: &'a mut SudokuBoard) -> Self {
+    fn update_and_incr(
+        &mut self,
+        perf: &mut PerfTracker,
+        x: usize,
+        y: usize,
+        value: Option<u8>,
+    ) -> bool {
+        let res = self.board.update_value(x, y, value);
+        perf.incr();
+        res.is_ok()
+    }
+}
+
+impl<'a> BaseAlgorithms<'a> for Backtracking<'a> {
+    fn new(board: &'a mut SudokuBoard) -> Self {
         let editable_cells = board.get_editable_cells();
         Backtracking {
             board,
@@ -17,13 +32,7 @@ impl<'a> Backtracking<'a> {
         }
     }
 
-    fn update_and_incr(&mut self, perf: &mut PerfTracker, x: usize, y: usize, value: Option<u8>) -> bool {
-        let res = self.board.update_value(x, y, value);
-        perf.incr();
-        res.is_ok()
-    }
-
-    pub fn resolve(self) {
+    fn resolve(self) {
         let mut this = self;
         let mut backtrack_index = 0usize;
         let mut perf = PerfTracker::new();
@@ -43,7 +52,7 @@ impl<'a> Backtracking<'a> {
                     backtrack_index += 1;
                     break;
                 } else {
-                    if current_value.unwrap() >= SudokuBoard::BOARD_MAX_NUMBER as u8  {
+                    if current_value.unwrap() >= SudokuBoard::BOARD_MAX_NUMBER as u8 {
                         let _ = this.board.update_value(x, y, None).unwrap();
                         perf.incr();
 

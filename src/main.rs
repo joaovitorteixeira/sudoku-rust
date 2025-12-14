@@ -4,14 +4,26 @@ use std::{
     thread::{self},
 };
 
-use crate::{cli::game_updater::GameUpdater, sudoku::algorithms::backtracking::Backtracking};
+use crate::{
+    cli::game_updater::GameUpdater,
+    sudoku::algorithms::{
+        backtracking::Backtracking, base_algorithms::BaseAlgorithms,
+        candidate_election::CandidateElection,
+    },
+};
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Algorithms {
+    Backtracking,
+    CandidateElection,
+}
 
 mod cli;
 mod sudoku;
 
 fn main() {
     let (board_tx, board_rx) = mpsc::channel::<String>();
-    let (throttle_enabled, throttle_ms) = read_args();
+    let (throttle_enabled, throttle_ms, algorithm) = read_args();
     let board_file_result = read_file("input.txt".to_owned());
     let board_file = match board_file_result {
         Ok(board_file) => board_file,
@@ -26,9 +38,17 @@ fn main() {
                 let _ = game_updater.listen();
             });
 
-            let _ = thread::spawn(move || {
-                let backtracking = Backtracking::new(&mut board);
-                backtracking.resolve();
+            let alg = algorithm.unwrap_or(Algorithms::CandidateElection);
+
+            let _ = thread::spawn(move || match alg {
+                Algorithms::Backtracking => {
+                    let backtracking = Backtracking::new(&mut board);
+                    backtracking.resolve();
+                }
+                Algorithms::CandidateElection => {
+                    let candidate = CandidateElection::new(&mut board);
+                    candidate.resolve();
+                }
             })
             .join();
         }
@@ -36,9 +56,10 @@ fn main() {
     }
 }
 
-fn read_args() -> (Option<bool>, Option<u64>) {
+fn read_args() -> (Option<bool>, Option<u64>, Option<Algorithms>) {
     let mut throttle_enabled: Option<bool> = None;
     let mut throttle_ms: Option<u64> = None;
+    let mut algorithm: Option<Algorithms> = None;
     let mut args = std::env::args().skip(1);
 
     while let Some(arg) = args.next() {
@@ -52,11 +73,22 @@ fn read_args() -> (Option<bool>, Option<u64>) {
                     }
                 }
             }
+            "--algorithm" | "-a" => {
+                if let Some(val) = args.next() {
+                    match val.to_lowercase().as_str() {
+                        "backtracking" | "bt" => algorithm = Some(Algorithms::Backtracking),
+                        "candidate" | "candidateelection" | "ce" => {
+                            algorithm = Some(Algorithms::CandidateElection)
+                        }
+                        _ => {}
+                    }
+                }
+            }
             _ => {}
         }
     }
 
-    (throttle_enabled, throttle_ms)
+    (throttle_enabled, throttle_ms, algorithm)
 }
 
 fn read_file(file_path: String) -> Result<Vec<Vec<Option<u8>>>, String> {
