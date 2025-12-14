@@ -23,16 +23,6 @@ impl SudokuCell {
             y: 0,
         }
     }
-
-    pub fn as_mut_ptr(&self) -> Result<&mut SudokuCell, String> {
-        let cell_ptr = self as *const SudokuCell as *mut SudokuCell;
-
-        unsafe {
-            cell_ptr
-                .as_mut()
-                .ok_or("Failed to get mutable reference to cell".to_string())
-        }
-    }
 }
 #[derive(Debug)]
 pub struct SudokuBoard {
@@ -76,7 +66,7 @@ impl SudokuBoard {
             return Err("The provided list must have 9 lines".to_string());
         }
 
-        let sudoku_board: SudokuBoard = SudokuBoard {
+        let mut sudoku_board: SudokuBoard = SudokuBoard {
             board: Self::initialize_board(),
             board_tx,
         };
@@ -87,16 +77,13 @@ impl SudokuBoard {
             }
 
             for (column_index, value) in row.iter().enumerate() {
-                let cell_result = sudoku_board.find_cell_from_coordinates(line_index, column_index);
+                let cell_result =
+                    sudoku_board.find_cell_from_coordinates_mut(line_index, column_index);
                 if let Ok(cell) = cell_result {
-                    if let Ok(cell_ptr) = cell.as_mut_ptr() {
-                        cell_ptr.value = *value;
-                        cell_ptr.editable = value.is_none();
-                        cell_ptr.x = line_index;
-                        cell_ptr.y = column_index;
-                    } else {
-                        return Err("Unexpected error when casting".to_string());
-                    }
+                    cell.value = *value;
+                    cell.editable = value.is_none();
+                    cell.x = line_index;
+                    cell.y = column_index;
                 } else {
                     return Err(cell_result.unwrap_err());
                 }
@@ -114,11 +101,35 @@ impl SudokuBoard {
         sudoku_box
     }
 
+    fn find_box_from_coordinate_mut(&mut self, x: usize, y: usize) -> &mut Box {
+        let board_row_index = x / Self::BOARD_N;
+        let board_column_index = y / Self::BOARD_N;
+        &mut self.board[board_row_index][board_column_index]
+    }
+
     pub fn find_cell_from_coordinates(&self, x: usize, y: usize) -> Result<&SudokuCell, String> {
         let box_row_index = x % Self::BOARD_N;
         let box_column_index = y % Self::BOARD_N;
         let sudoku_box: &Box = self.find_box_from_coordinate(x, y);
         let cell_result: Option<&SudokuCell> = Some(&sudoku_box[box_row_index][box_column_index]);
+
+        if let Some(cell) = cell_result {
+            Ok(cell)
+        } else {
+            Err(format!("Cell not found at coordinates ({}, {})", x, y))
+        }
+    }
+
+    fn find_cell_from_coordinates_mut(
+        &mut self,
+        x: usize,
+        y: usize,
+    ) -> Result<&mut SudokuCell, String> {
+        let box_row_index = x % Self::BOARD_N;
+        let box_column_index = y % Self::BOARD_N;
+        let sudoku_box: &mut Box = self.find_box_from_coordinate_mut(x, y);
+        let cell_result: Option<&mut SudokuCell> =
+            Some(&mut sudoku_box[box_row_index][box_column_index]);
 
         if let Some(cell) = cell_result {
             Ok(cell)
@@ -136,10 +147,8 @@ impl SudokuBoard {
             return Err("Invalid Insertion".to_string());
         }
 
-        let cell_result = self.find_cell_from_coordinates(x, y);
-
-        if let Ok(cell) = cell_result {
-            if let Ok(cell_ptr) = cell.as_mut_ptr() {
+        match self.find_cell_from_coordinates_mut(x, y) {
+            Ok(cell_ptr) => {
                 cell_ptr.value = value;
 
                 let result = self.board_tx.send(format!("{:}", self));
@@ -149,11 +158,8 @@ impl SudokuBoard {
                 }
 
                 Ok(())
-            } else {
-                Err("You cannot edit this cell".to_string())
             }
-        } else {
-            Err(cell_result.unwrap_err())
+            Err(e) => Err(e),
         }
     }
 
