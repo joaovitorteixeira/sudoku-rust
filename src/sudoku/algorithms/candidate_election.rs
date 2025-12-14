@@ -55,39 +55,42 @@ impl<'a> BaseAlgorithms<'a> for CandidateElection<'a> {
         perf.start();
 
         while this.editable_cells.len() > backtrack_index {
-            let (mut x, mut y, mut candidates) = {
+            let (mut index, mut x, mut y, mut candidate_len) = {
                 let ec = &this.editable_cells[backtrack_index];
-                (ec.x, ec.y, ec.candidates.clone())
-            };
-            let cell = this.board.find_cell_from_coordinates(x, y).unwrap();
-            let mut index = if cell.value.is_some() {
-                candidates
-                    .iter()
-                    .position(|value| *value == cell.value.unwrap())
-                    .unwrap()
-                    + 1
-            } else {
-                0
+                let (x, y) = (ec.x, ec.y);
+                let cell = this.board.find_cell_from_coordinates(x, y).unwrap();
+                let candidates = &ec.candidates;
+                let index = if cell.value.is_some() {
+                    candidates
+                        .iter()
+                        .position(|value| *value == cell.value.unwrap())
+                        .unwrap()
+                        + 1
+                } else {
+                    0
+                };
+
+                (index, x, y, candidates.len())
             };
 
-            while index < candidates.len() {
-                let value = candidates[index];
+            while index < candidate_len {
+                let value = this.editable_cells[backtrack_index].candidates[index];
 
                 if this.update_and_incr(&mut perf, x, y, Some(value)) {
                     backtrack_index += 1;
                     break;
                 } else {
-                    if index >= candidates.len() {
+                    if index >= candidate_len {
                         let _ = this.update_and_incr(&mut perf, x, y, None);
 
                         backtrack_index -= 1;
-                        (x, y, candidates) = {
+                        (x, y, candidate_len) = {
                             let ec = &this.editable_cells[backtrack_index];
-                            (ec.x, ec.y, ec.candidates.clone())
+                            (ec.x, ec.y, ec.candidates.len())
                         };
                         let cell = this.board.find_cell_from_coordinates(x, y).unwrap();
-
                         if cell.value.is_some() {
+                            let candidates = &this.editable_cells[backtrack_index].candidates;
                             index = candidates
                                 .iter()
                                 .position(|value| *value == cell.value.unwrap())
@@ -102,7 +105,7 @@ impl<'a> BaseAlgorithms<'a> for CandidateElection<'a> {
                 }
             }
 
-            if index >= candidates.len() {
+            if index >= candidate_len {
                 let _ = this.board.update_value(x, y, None).unwrap();
                 perf.incr();
                 backtrack_index -= 1;
