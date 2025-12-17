@@ -95,25 +95,24 @@ impl SudokuBoard {
         Ok(sudoku_board)
     }
 
-    fn find_box_from_coordinate(&self, x: usize, y: usize) -> &Box {
+    fn decompose_coordinates(x: usize, y: usize) -> (usize, usize, usize, usize) {
         let board_row_index = x / Self::BOARD_N;
         let board_column_index = y / Self::BOARD_N;
-        let sudoku_box: &Box = &self.board[board_row_index][board_column_index];
-
-        sudoku_box
-    }
-
-    fn find_box_from_coordinate_mut(&mut self, x: usize, y: usize) -> &mut Box {
-        let board_row_index = x / Self::BOARD_N;
-        let board_column_index = y / Self::BOARD_N;
-        &mut self.board[board_row_index][board_column_index]
+        let box_row_index = x % Self::BOARD_N;
+        let box_column_index = y % Self::BOARD_N;
+        (
+            board_row_index,
+            board_column_index,
+            box_row_index,
+            box_column_index,
+        )
     }
 
     pub fn find_cell_from_coordinates(&self, x: usize, y: usize) -> Result<&SudokuCell, String> {
-        let box_row_index = x % Self::BOARD_N;
-        let box_column_index = y % Self::BOARD_N;
-        let sudoku_box: &Box = self.find_box_from_coordinate(x, y);
-        let cell_result: Option<&SudokuCell> = Some(&sudoku_box[box_row_index][box_column_index]);
+        let decomposed_coordinates = Self::decompose_coordinates(x, y);
+        let sudoku_box: &Box = &self.board[decomposed_coordinates.0][decomposed_coordinates.1];
+        let cell_result: Option<&SudokuCell> =
+            Some(&sudoku_box[decomposed_coordinates.2][decomposed_coordinates.3]);
 
         if let Some(cell) = cell_result {
             Ok(cell)
@@ -127,11 +126,11 @@ impl SudokuBoard {
         x: usize,
         y: usize,
     ) -> Result<&mut SudokuCell, String> {
-        let box_row_index = x % Self::BOARD_N;
-        let box_column_index = y % Self::BOARD_N;
-        let sudoku_box: &mut Box = self.find_box_from_coordinate_mut(x, y);
+        let decomposed_coordinates = Self::decompose_coordinates(x, y);
+        let sudoku_box: &mut Box =
+            &mut self.board[decomposed_coordinates.0][decomposed_coordinates.1];
         let cell_result: Option<&mut SudokuCell> =
-            Some(&mut sudoku_box[box_row_index][box_column_index]);
+            Some(&mut sudoku_box[decomposed_coordinates.2][decomposed_coordinates.3]);
 
         if let Some(cell) = cell_result {
             Ok(cell)
@@ -186,7 +185,8 @@ impl SudokuBoard {
     }
 
     fn is_valid_box(&self, x: usize, y: usize, new_value: u8) -> bool {
-        let sudoku_box = self.find_box_from_coordinate(x, y);
+        let decomposed_coordinates = Self::decompose_coordinates(x, y);
+        let sudoku_box = self.board[decomposed_coordinates.0][decomposed_coordinates.1];
         sudoku_box.iter().all(|&lines| {
             let result = lines.iter().all(|&cell| cell.value != Some(new_value));
             return result;
