@@ -1,6 +1,6 @@
 use crate::sudoku::algorithms::base_algorithms::BaseAlgorithms;
 use crate::sudoku::algorithms::perf::PerfTracker;
-use crate::sudoku::board::SudokuBoard;
+use crate::sudoku::board::{CellType, SudokuBoard};
 
 pub struct Backtracking<'a> {
     board: &'a mut SudokuBoard,
@@ -13,7 +13,7 @@ impl<'a> Backtracking<'a> {
         perf: &mut PerfTracker,
         x: usize,
         y: usize,
-        value: Option<u8>,
+        value: Option<CellType>,
     ) -> bool {
         let res = self.board.update_value(x, y, value);
         perf.incr();
@@ -44,13 +44,13 @@ impl<'a> BaseAlgorithms<'a> for Backtracking<'a> {
                 cell.value.or(Some(1))
             };
 
-            while current_value.unwrap() <= SudokuBoard::BOARD_MAX_NUMBER as u8 {
+            while current_value.unwrap() <= SudokuBoard::BOARD_MAX_NUMBER as CellType {
                 // thread::sleep(Duration::from_millis(1));
                 if this.update_and_incr(&mut perf, x, y, current_value) {
                     backtrack_index += 1;
                     break;
                 } else {
-                    if current_value.unwrap() >= SudokuBoard::BOARD_MAX_NUMBER as u8 {
+                    if current_value.unwrap() >= SudokuBoard::BOARD_MAX_NUMBER as CellType {
                         let _ = this.board.update_value(x, y, None).unwrap();
                         perf.incr();
 
@@ -68,7 +68,7 @@ impl<'a> BaseAlgorithms<'a> for Backtracking<'a> {
                 }
             }
 
-            if current_value.unwrap() > SudokuBoard::BOARD_MAX_NUMBER as u8 {
+            if current_value.unwrap() > SudokuBoard::BOARD_MAX_NUMBER as CellType {
                 let _ = this.board.update_value(x, y, None).unwrap();
                 perf.incr();
                 backtrack_index -= 1;

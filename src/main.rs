@@ -6,10 +6,10 @@ use std::{
 
 use crate::{
     cli::game_updater::{CliChannelEvent, GameUpdater},
-    sudoku::algorithms::{
+    sudoku::{algorithms::{
         backtracking::Backtracking, base_algorithms::BaseAlgorithms,
         candidate_election::CandidateElection,
-    },
+    }, board::CellType},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -90,8 +90,8 @@ fn read_args() -> (Option<u64>, Option<Algorithms>) {
     (throttle_ms, algorithm)
 }
 
-fn read_file(file_path: String) -> Result<Vec<Vec<Option<u8>>>, String> {
-    let mut board_file: Vec<Vec<Option<u8>>> = Vec::new();
+fn read_file(file_path: String) -> Result<Vec<Vec<Option<CellType>>>, String> {
+    let mut board_file: Vec<Vec<Option<CellType>>> = Vec::new();
     for line in match read_to_string(file_path) {
         Ok(file) => file,
         Err(_) => return Err("Couldn't read the file".to_string()),
@@ -100,8 +100,8 @@ fn read_file(file_path: String) -> Result<Vec<Vec<Option<u8>>>, String> {
     {
         let list = line
             .chars()
-            .fold(Vec::<Option<u8>>::new(), |mut acc, value| {
-                acc.push(value.to_digit(10).map(|digit| digit as u8));
+            .fold(Vec::<Option<CellType>>::new(), |mut acc: Vec<Option<u16>>, value| {
+                acc.push(value.to_digit(10).map(|digit| digit as CellType));
                 acc
             });
 

@@ -1,12 +1,12 @@
 use crate::sudoku::{
     algorithms::{base_algorithms::BaseAlgorithms, perf::PerfTracker},
-    board::SudokuBoard,
+    board::{CellType, SudokuBoard},
 };
 
 struct EditableCells {
     x: usize,
     y: usize,
-    candidates: Vec<u8>,
+    candidates: Vec<CellType>,
 }
 
 pub struct CandidateElection<'a> {
@@ -20,7 +20,7 @@ impl<'a> CandidateElection<'a> {
         perf: &mut PerfTracker,
         x: usize,
         y: usize,
-        value: Option<u8>,
+        value: Option<CellType>,
     ) -> bool {
         let res = self.board.update_value(x, y, value);
         perf.incr();
@@ -34,8 +34,8 @@ impl<'a> BaseAlgorithms<'a> for CandidateElection<'a> {
         let mut editable_cells = Vec::with_capacity(cells.len());
 
         for (x, y) in cells {
-            let candidates: Vec<u8> = (1..=SudokuBoard::BOARD_MAX_NUMBER as u8)
-                .filter(|&v| sudoku_board.is_valid_insertion(x, y, Some(v as u8)))
+            let candidates: Vec<CellType> = (1..=SudokuBoard::BOARD_MAX_NUMBER as CellType)
+                .filter(|&v| sudoku_board.is_valid_insertion(x, y, Some(v as CellType)))
                 .collect();
 
             editable_cells.push(EditableCells { candidates, x, y });
@@ -74,7 +74,7 @@ impl<'a> BaseAlgorithms<'a> for CandidateElection<'a> {
             };
 
             while index < candidate_len {
-                let value = this.editable_cells[backtrack_index].candidates[index];
+                let value: u16 = this.editable_cells[backtrack_index].candidates[index];
 
                 if this.update_and_incr(&mut perf, x, y, Some(value)) {
                     backtrack_index += 1;

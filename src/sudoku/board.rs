@@ -6,17 +6,18 @@ const BOARD_N: usize = 3;
 
 type Box = [[SudokuCell; BOARD_N]; BOARD_N];
 type Board = [[Box; BOARD_N]; BOARD_N];
+pub type CellType = u16;
 
 #[derive(Debug, Clone, Copy)]
 pub struct SudokuCell {
-    pub value: Option<u8>,
+    pub value: Option<CellType>,
     pub editable: bool,
     pub x: usize,
     pub y: usize,
 }
 
 impl SudokuCell {
-    fn new(value: Option<u8>) -> Self {
+    fn new(value: Option<CellType>) -> Self {
         SudokuCell {
             value,
             editable: if value.is_some() { false } else { true },
@@ -61,7 +62,7 @@ impl SudokuBoard {
     }
 
     pub fn new(
-        list: Vec<Vec<Option<u8>>>,
+        list: Vec<Vec<Option<CellType>>>,
         board_tx: Sender<CliChannelEvent>,
     ) -> Result<Self, String> {
         if list.len() != Self::BOARD_MAX_NUMBER {
@@ -139,7 +140,7 @@ impl SudokuBoard {
         }
     }
 
-    pub fn update_value(&mut self, x: usize, y: usize, value: Option<u8>) -> Result<(), String> {
+    pub fn update_value(&mut self, x: usize, y: usize, value: Option<CellType>) -> Result<(), String> {
         if x >= Self::BOARD_MAX_NUMBER.into() || y >= Self::BOARD_MAX_NUMBER.into() {
             return Err(format!("Invalid coordinates ({}, {})", x, y));
         }
@@ -174,7 +175,7 @@ impl SudokuBoard {
         }
     }
 
-    pub fn is_valid_insertion(&self, x: usize, y: usize, new_value: Option<u8>) -> bool {
+    pub fn is_valid_insertion(&self, x: usize, y: usize, new_value: Option<CellType>) -> bool {
         if let Some(value) = new_value {
             return self.is_valid_box(x, y, value)
                 && self.is_valid_line(x, value)
@@ -184,7 +185,7 @@ impl SudokuBoard {
         }
     }
 
-    fn is_valid_box(&self, x: usize, y: usize, new_value: u8) -> bool {
+    fn is_valid_box(&self, x: usize, y: usize, new_value: CellType) -> bool {
         let decomposed_coordinates = Self::decompose_coordinates(x, y);
         let sudoku_box = self.board[decomposed_coordinates.0][decomposed_coordinates.1];
         sudoku_box.iter().all(|&lines| {
@@ -193,7 +194,7 @@ impl SudokuBoard {
         })
     }
 
-    fn is_valid_line(&self, x: usize, new_value: u8) -> bool {
+    fn is_valid_line(&self, x: usize, new_value: CellType) -> bool {
         for y in 0..Self::BOARD_MAX_NUMBER.into() {
             let cell = self.find_cell_from_coordinates(x, y).unwrap();
 
@@ -205,7 +206,7 @@ impl SudokuBoard {
         return true;
     }
 
-    fn is_valid_column(&self, y: usize, new_value: u8) -> bool {
+    fn is_valid_column(&self, y: usize, new_value: CellType) -> bool {
         for x in 0..Self::BOARD_MAX_NUMBER.into() {
             let cell = self.find_cell_from_coordinates(x, y).unwrap();
 
