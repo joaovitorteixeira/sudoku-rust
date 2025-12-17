@@ -14,20 +14,6 @@ pub struct CandidateElection<'a> {
     editable_cells: Vec<EditableCells>,
 }
 
-impl<'a> CandidateElection<'a> {
-    fn update_and_incr(
-        &mut self,
-        perf: &mut PerfTracker,
-        x: usize,
-        y: usize,
-        value: Option<CellType>,
-    ) -> bool {
-        let res = self.board.update_value(x, y, value);
-        perf.incr();
-        res.is_ok()
-    }
-}
-
 impl<'a> BaseAlgorithms<'a> for CandidateElection<'a> {
     fn new(sudoku_board: &'a mut SudokuBoard) -> Self {
         let cells = sudoku_board.get_editable_cells();
@@ -48,7 +34,7 @@ impl<'a> BaseAlgorithms<'a> for CandidateElection<'a> {
     }
 
     fn resolve(self) {
-        let mut this = self;
+        let this = self;
         let mut backtrack_index = 0usize;
         let mut perf = PerfTracker::new();
 
@@ -72,23 +58,24 @@ impl<'a> BaseAlgorithms<'a> for CandidateElection<'a> {
 
                 (index, x, y, candidates.len())
             };
+            let board = &mut *this.board;
 
             while index < candidate_len {
                 let value: u16 = this.editable_cells[backtrack_index].candidates[index];
 
-                if this.update_and_incr(&mut perf, x, y, Some(value)) {
+                if Self::update_and_incr(board, &mut perf, x, y, Some(value)) {
                     backtrack_index += 1;
                     break;
                 } else {
                     if index >= candidate_len {
-                        let _ = this.update_and_incr(&mut perf, x, y, None);
+                        let _ = Self::update_and_incr(board, &mut perf, x, y, None);
 
                         backtrack_index -= 1;
                         (x, y, candidate_len) = {
                             let ec = &this.editable_cells[backtrack_index];
                             (ec.x, ec.y, ec.candidates.len())
                         };
-                        let cell = this.board.find_cell_from_coordinates(x, y).unwrap();
+                        let cell = board.find_cell_from_coordinates(x, y).unwrap();
                         if cell.value.is_some() {
                             let candidates = &this.editable_cells[backtrack_index].candidates;
                             index = candidates

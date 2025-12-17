@@ -7,20 +7,6 @@ pub struct Backtracking<'a> {
     editable_cells: Vec<(usize, usize)>,
 }
 
-impl<'a> Backtracking<'a> {
-    fn update_and_incr(
-        &mut self,
-        perf: &mut PerfTracker,
-        x: usize,
-        y: usize,
-        value: Option<CellType>,
-    ) -> bool {
-        let res = self.board.update_value(x, y, value);
-        perf.incr();
-        res.is_ok()
-    }
-}
-
 impl<'a> BaseAlgorithms<'a> for Backtracking<'a> {
     fn new(board: &'a mut SudokuBoard) -> Self {
         let editable_cells = board.get_editable_cells();
@@ -31,7 +17,7 @@ impl<'a> BaseAlgorithms<'a> for Backtracking<'a> {
     }
 
     fn resolve(self) {
-        let mut this = self;
+        let this = self;
         let mut backtrack_index = 0usize;
         let mut perf = PerfTracker::new();
 
@@ -43,20 +29,20 @@ impl<'a> BaseAlgorithms<'a> for Backtracking<'a> {
                 let cell = this.board.find_cell_from_coordinates(x, y).unwrap();
                 cell.value.or(Some(1))
             };
+            let board = &mut *this.board;
 
             while current_value.unwrap() <= SudokuBoard::BOARD_MAX_NUMBER as CellType {
-                // thread::sleep(Duration::from_millis(1));
-                if this.update_and_incr(&mut perf, x, y, current_value) {
+                if Self::update_and_incr(board, &mut perf, x, y, current_value) {
                     backtrack_index += 1;
                     break;
                 } else {
                     if current_value.unwrap() >= SudokuBoard::BOARD_MAX_NUMBER as CellType {
-                        let _ = this.board.update_value(x, y, None).unwrap();
+                        let _ = board.update_value(x, y, None).unwrap();
                         perf.incr();
 
                         backtrack_index -= 1;
                         (x, y) = this.editable_cells[backtrack_index];
-                        let cell = this.board.find_cell_from_coordinates(x, y).unwrap();
+                        let cell = board.find_cell_from_coordinates(x, y).unwrap();
                         current_value = if cell.value.is_some() {
                             Some(cell.value.unwrap() + 1)
                         } else {
@@ -69,7 +55,7 @@ impl<'a> BaseAlgorithms<'a> for Backtracking<'a> {
             }
 
             if current_value.unwrap() > SudokuBoard::BOARD_MAX_NUMBER as CellType {
-                let _ = this.board.update_value(x, y, None).unwrap();
+                let _ = board.update_value(x, y, None).unwrap();
                 perf.incr();
                 backtrack_index -= 1;
             }

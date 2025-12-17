@@ -140,7 +140,12 @@ impl SudokuBoard {
         }
     }
 
-    pub fn update_value(&mut self, x: usize, y: usize, value: Option<CellType>) -> Result<(), String> {
+    pub fn update_value(
+        &mut self,
+        x: usize,
+        y: usize,
+        value: Option<CellType>,
+    ) -> Result<(), String> {
         if x >= Self::BOARD_MAX_NUMBER.into() || y >= Self::BOARD_MAX_NUMBER.into() {
             return Err(format!("Invalid coordinates ({}, {})", x, y));
         }

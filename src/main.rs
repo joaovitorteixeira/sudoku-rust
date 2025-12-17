@@ -6,10 +6,13 @@ use std::{
 
 use crate::{
     cli::game_updater::{CliChannelEvent, GameUpdater},
-    sudoku::{algorithms::{
-        backtracking::Backtracking, base_algorithms::BaseAlgorithms,
-        candidate_election::CandidateElection,
-    }, board::CellType},
+    sudoku::{
+        algorithms::{
+            backtracking::Backtracking, base_algorithms::BaseAlgorithms,
+            candidate_election::CandidateElection,
+        },
+        board::CellType,
+    },
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -98,12 +101,13 @@ fn read_file(file_path: String) -> Result<Vec<Vec<Option<CellType>>>, String> {
     }
     .lines()
     {
-        let list = line
-            .chars()
-            .fold(Vec::<Option<CellType>>::new(), |mut acc: Vec<Option<u16>>, value| {
+        let list = line.chars().fold(
+            Vec::<Option<CellType>>::new(),
+            |mut acc: Vec<Option<u16>>, value| {
                 acc.push(value.to_digit(10).map(|digit| digit as CellType));
                 acc
-            });
+            },
+        );
 
         board_file.push(list);
     }
