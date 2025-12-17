@@ -20,7 +20,8 @@ impl<'a> BaseAlgorithms<'a> for CandidateElection<'a> {
         let mut editable_cells = Vec::with_capacity(cells.len());
 
         for (x, y) in cells {
-            let candidates: Vec<CellType> = (1..=SudokuBoard::BOARD_MAX_NUMBER as CellType)
+            let candidates: Vec<CellType> = SudokuBoard::valid_values()
+                .into_iter()
                 .filter(|&v| sudoku_board.is_valid_insertion(x, y, Some(v as CellType)))
                 .collect();
 
@@ -100,7 +101,12 @@ impl<'a> BaseAlgorithms<'a> for CandidateElection<'a> {
         }
 
         perf.finish();
-        this.board.finish();
+        let result = this.board.finish();
+
+        if result.is_err() {
+            panic!("{:?}", result)
+        }
+
         perf.print_summary();
     }
 }

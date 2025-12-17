@@ -62,7 +62,12 @@ impl<'a> BaseAlgorithms<'a> for Backtracking<'a> {
         }
 
         perf.finish();
-        this.board.finish();
+        let result = this.board.finish();
+
+        if result.is_err() {
+            panic!("{:?}", result)
+        }
+
         perf.print_summary();
     }
 }

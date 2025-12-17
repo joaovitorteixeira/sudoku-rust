@@ -36,6 +36,10 @@ impl SudokuBoard {
     pub const BOARD_N: usize = BOARD_N;
     pub const BOARD_MAX_NUMBER: usize = Self::BOARD_N.pow(2);
 
+    pub fn valid_values() -> Vec<CellType> {
+        (1..=SudokuBoard::BOARD_MAX_NUMBER as CellType).collect()
+    }
+
     fn initialize_box() -> Box {
         ([[SudokuCell::new(None); Self::BOARD_N]; Self::BOARD_N]).into()
     }
@@ -168,7 +172,73 @@ impl SudokuBoard {
         result
     }
 
-    pub fn finish(&self) {
+    fn calculate_final_cost(&self) -> Result<u16, String> {
+        let row_and_column_cost = {
+            let mut cost = 0;
+            for x in 0..Self::BOARD_MAX_NUMBER {
+                let mut missing_values_in_row = Self::valid_values();
+                let mut missing_values_in_column = Self::valid_values();
+
+                for y in 0..Self::BOARD_MAX_NUMBER {
+                    let cell_row_result = self.find_cell_from_coordinates(x, y)?;
+                    let cell_column_result = self.find_cell_from_coordinates(y, x)?;
+
+                    if cell_row_result.value.is_none() {
+                        return Err(format!("Cell {},{} is empty", x, y));
+                    } else if cell_column_result.value.is_none() {
+                        return Err(format!("Cell {},{} is empty", y, x));
+                    }
+
+                    missing_values_in_row.retain(|&value| value != cell_row_result.value.unwrap());
+                    missing_values_in_column
+                        .retain(|&value| value != cell_column_result.value.unwrap());
+                }
+
+                cost += missing_values_in_row.iter().sum::<CellType>()
+                    + missing_values_in_column.iter().sum::<CellType>();
+            }
+
+            cost
+        };
+
+        let box_cost = {
+            let mut cost = 0;
+
+            for boxes in self.board {
+                let mut missing_values_in_box = Self::valid_values();
+
+                for sudoku_box in boxes {
+                    for row in sudoku_box {
+                        for cell in row {
+                            if cell.value.is_none() {
+                                return Err(format!("Cell {}, {} is empty", cell.x, cell.y));
+                            }
+
+                            missing_values_in_box.retain(|&value| cell.value.unwrap() != value);
+                        }
+                    }
+                }
+
+                cost += missing_values_in_box.iter().sum::<CellType>();
+            }
+
+            cost
+        };
+
+        let total = row_and_column_cost
+            .checked_add(box_cost)
+            .ok_or_else(|| "Cost overflow".to_string())?;
+
+        Ok(total)
+    }
+
+    pub fn finish(&self) -> Result<(), String> {
+        let cost = self.calculate_final_cost()?;
+
+        if cost > 0 {
+            return Err("Sudoku does not have a optimal solution".to_string());
+        }
+
         for x in 0..Self::BOARD_MAX_NUMBER {
             for y in 0..Self::BOARD_MAX_NUMBER {
                 let cell_result = self.find_cell_from_coordinates(x, y);
@@ -178,6 +248,8 @@ impl SudokuBoard {
                 }
             }
         }
+
+        Ok(())
     }
 
     pub fn is_valid_insertion(&self, x: usize, y: usize, new_value: Option<CellType>) -> bool {
