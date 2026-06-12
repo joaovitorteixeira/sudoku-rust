@@ -238,22 +238,6 @@ impl SudokuBoard {
         editable_cells
     }
 
-    pub fn get_fixed_cells(&self) -> Vec<(usize, usize)> {
-        let mut fixed_cells = vec![];
-
-        for x in 0..Self::BOARD_MAX_NUMBER {
-            for y in 0..Self::BOARD_MAX_NUMBER {
-                let cell = &self.cells[x][y];
-
-                if !cell.editable {
-                    fixed_cells.push((cell.x, cell.y));
-                }
-            }
-        }
-
-        fixed_cells
-    }
-
     pub fn get_cells_from_box(&self, box_i: usize, box_j: usize) -> Vec<&SudokuCell> {
         let mut cells = Vec::with_capacity(Self::BOARD_N * Self::BOARD_N);
 
