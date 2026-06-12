@@ -1,7 +1,7 @@
 use std::sync::mpsc::Sender;
 
 use crate::{
-    cli::{board_notifier::broadcast_board, game_updater::CliChannelEvent},
+    cli::game_updater::CliChannelEvent,
     sudoku::{
         algorithms::{base_algorithms::BaseAlgorithms, perf::PerfTracker},
         board::{CellType, SudokuBoard},
@@ -41,7 +41,7 @@ impl<'a> BaseAlgorithms<'a> for CandidateElection<'a> {
         }
     }
 
-    fn resolve(self) {
+    fn resolve(self) -> PerfTracker {
         let this = self;
         let mut backtrack_index = 0usize;
         let mut perf = PerfTracker::new();
@@ -114,7 +114,6 @@ impl<'a> BaseAlgorithms<'a> for CandidateElection<'a> {
             panic!("{:?}", result)
         }
 
-        broadcast_board(this.board, &this.board_tx);
-        perf.print_summary();
+        perf
     }
 }

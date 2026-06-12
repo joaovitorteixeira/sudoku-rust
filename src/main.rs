@@ -5,7 +5,10 @@ use std::{
 };
 
 use crate::{
-    cli::game_updater::{CliChannelEvent, GameUpdater},
+    cli::{
+        board_notifier::broadcast_board,
+        game_updater::{CliChannelEvent, GameUpdater},
+    },
     sudoku::{
         algorithms::{
             backtracking::Backtracking, base_algorithms::BaseAlgorithms,
@@ -40,24 +43,23 @@ fn main() {
 
     match board {
         Ok(mut board) => {
+            broadcast_board(&board, &board_tx);
             let alg = algorithm.unwrap_or(Algorithms::CandidateElection);
 
-            let _ = thread::spawn(move || match alg {
-                Algorithms::Backtracking => {
-                    let backtracking = Backtracking::new(&mut board, board_tx);
-                    backtracking.resolve();
-                }
+            let perf = thread::spawn(move || match alg {
+                Algorithms::Backtracking => Backtracking::new(&mut board, board_tx).resolve(),
                 Algorithms::CandidateElection => {
-                    let candidate = CandidateElection::new(&mut board, board_tx);
-                    candidate.resolve();
+                    CandidateElection::new(&mut board, board_tx).resolve()
                 }
             })
-            .join();
+            .join()
+            .expect("solver thread panicked");
+
+            let _ = game_updater_thread.join();
+            perf.print_summary();
         }
         Err(message) => panic!("{message}"),
     }
-
-    let _ = game_updater_thread.join();
 }
 
 fn read_args() -> (Option<u64>, Option<Algorithms>) {

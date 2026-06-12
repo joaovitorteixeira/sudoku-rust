@@ -1,10 +1,8 @@
-use std::sync::mpsc::Sender;
-
-use crate::cli::board_notifier::broadcast_board;
 use crate::cli::game_updater::CliChannelEvent;
 use crate::sudoku::algorithms::base_algorithms::BaseAlgorithms;
 use crate::sudoku::algorithms::perf::PerfTracker;
 use crate::sudoku::board::{CellType, SudokuBoard};
+use std::sync::mpsc::Sender;
 
 pub struct Backtracking<'a> {
     board: &'a mut SudokuBoard,
@@ -22,7 +20,7 @@ impl<'a> BaseAlgorithms<'a> for Backtracking<'a> {
         }
     }
 
-    fn resolve(self) {
+    fn resolve(self) -> PerfTracker {
         let this = self;
         let mut backtrack_index = 0usize;
         let mut perf = PerfTracker::new();
@@ -74,7 +72,6 @@ impl<'a> BaseAlgorithms<'a> for Backtracking<'a> {
             panic!("{:?}", result)
         }
 
-        broadcast_board(this.board, &this.board_tx);
-        perf.print_summary();
+        perf
     }
 }

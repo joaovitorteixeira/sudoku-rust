@@ -10,7 +10,7 @@ use crate::{
 
 pub trait BaseAlgorithms<'a> {
     fn new(sudoku_board: &'a mut SudokuBoard, board_tx: Sender<CliChannelEvent>) -> Self;
-    fn resolve(self);
+    fn resolve(self) -> PerfTracker;
 
     fn update_and_incr(
         board: &mut SudokuBoard,

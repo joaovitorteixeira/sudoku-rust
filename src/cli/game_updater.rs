@@ -12,6 +12,7 @@ pub struct GameUpdater {
 
 pub enum CliChannelEvent {
     Update(SudokuCell),
+    UpdateAll(Vec<SudokuCell>),
 }
 
 impl GameUpdater {
@@ -30,18 +31,15 @@ impl GameUpdater {
         message
     }
 
-    fn format(&mut self, sudoku_message: SudokuCell) -> String {
-        let cell = &mut self.sudoku.board[sudoku_message.x][sudoku_message.y];
-        cell.value = sudoku_message.value;
-        cell.editable = sudoku_message.editable;
-
-        format!("{}", self.sudoku)
+    fn update_cell(&mut self, update: SudokuCell) {
+        let cell = &mut self.sudoku.board[update.x][update.y];
+        cell.value = update.value;
+        cell.editable = update.editable;
     }
 
     pub fn listen(&mut self) -> Result<(), String> {
         let mut last_print = Instant::now() - Duration::from_millis(self.throttle_ms);
         let interval = Duration::from_millis(self.throttle_ms);
-        let mut last_message: Option<String> = None;
 
         loop {
             match self.board_rx.recv() {
@@ -49,13 +47,19 @@ impl GameUpdater {
                     let now = Instant::now();
                     match sudoku_message {
                         CliChannelEvent::Update(sudoku_cell) => {
-                            let out = self.format(sudoku_cell);
+                            self.update_cell(sudoku_cell);
 
                             if now.duration_since(last_print) >= interval {
+                                self.print(format!("{}", self.sudoku));
                                 last_print = now;
                             }
+                        }
+                        CliChannelEvent::UpdateAll(sudoku_cells) => {
+                            for sudoku_cell in sudoku_cells {
+                                self.update_cell(sudoku_cell);
+                            }
 
-                            last_message = Some(out);
+                            self.print(format!("{}", self.sudoku));
                         }
                     }
                 }
@@ -63,9 +67,7 @@ impl GameUpdater {
             }
         }
 
-        if let Some(message) = last_message {
-            self.print(message);
-        }
+        self.print(format!("{}", self.sudoku));
 
         Ok(())
     }
