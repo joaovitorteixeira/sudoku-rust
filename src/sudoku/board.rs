@@ -74,12 +74,7 @@ impl SudokuBoard {
         Ok(&self.cells[x][y])
     }
 
-    pub fn update_value(
-        &mut self,
-        x: usize,
-        y: usize,
-        value: Option<CellType>,
-    ) -> Result<(), String> {
+    pub fn set_cell(&mut self, x: usize, y: usize, value: Option<CellType>) -> Result<(), String> {
         if x >= Self::BOARD_MAX_NUMBER || y >= Self::BOARD_MAX_NUMBER {
             return Err(format!("Invalid coordinates ({}, {})", x, y));
         }
@@ -92,33 +87,50 @@ impl SudokuBoard {
         Ok(())
     }
 
-    fn calculate_final_cost(&self) -> Result<u16, String> {
-        let row_and_column_cost = {
-            let mut cost = 0;
-            for x in 0..Self::BOARD_MAX_NUMBER {
-                let mut missing_values_in_row = Self::valid_values();
-                let mut missing_values_in_column = Self::valid_values();
+    pub fn set_cell_unchecked(
+        &mut self,
+        x: usize,
+        y: usize,
+        value: Option<CellType>,
+    ) -> Result<(), String> {
+        if x >= Self::BOARD_MAX_NUMBER || y >= Self::BOARD_MAX_NUMBER {
+            return Err(format!("Invalid coordinates ({}, {})", x, y));
+        }
 
-                for y in 0..Self::BOARD_MAX_NUMBER {
-                    let row_value = self.cells[x][y].value;
-                    let column_value = self.cells[y][x].value;
+        self.cells[x][y].value = value;
 
-                    if row_value.is_none() {
-                        return Err(format!("Cell {},{} is empty", x, y));
-                    } else if column_value.is_none() {
-                        return Err(format!("Cell {},{} is empty", y, x));
-                    }
+        Ok(())
+    }
 
-                    missing_values_in_row.retain(|&value| value != row_value.unwrap());
-                    missing_values_in_column.retain(|&value| value != column_value.unwrap());
+    pub fn calculate_raw_column_cost(&self) -> Result<u16, String> {
+        let mut cost = 0;
+        for x in 0..Self::BOARD_MAX_NUMBER {
+            let mut missing_values_in_row = Self::valid_values();
+            let mut missing_values_in_column = Self::valid_values();
+
+            for y in 0..Self::BOARD_MAX_NUMBER {
+                let row_value = self.cells[x][y].value;
+                let column_value = self.cells[y][x].value;
+
+                if row_value.is_none() {
+                    return Err(format!("Cell {},{} is empty", x, y));
+                } else if column_value.is_none() {
+                    return Err(format!("Cell {},{} is empty", y, x));
                 }
 
-                cost += missing_values_in_row.iter().sum::<CellType>()
-                    + missing_values_in_column.iter().sum::<CellType>();
+                missing_values_in_row.retain(|&value| value != row_value.unwrap());
+                missing_values_in_column.retain(|&value| value != column_value.unwrap());
             }
 
-            cost
-        };
+            cost += missing_values_in_row.iter().sum::<CellType>()
+                + missing_values_in_column.iter().sum::<CellType>();
+        }
+
+        Ok(cost)
+    }
+
+    fn calculate_final_cost(&self) -> Result<u16, String> {
+        let row_and_column_cost = self.calculate_raw_column_cost()?;
 
         let box_cost = {
             let mut cost = 0;
@@ -224,6 +236,34 @@ impl SudokuBoard {
         }
 
         editable_cells
+    }
+
+    pub fn get_fixed_cells(&self) -> Vec<(usize, usize)> {
+        let mut fixed_cells = vec![];
+
+        for x in 0..Self::BOARD_MAX_NUMBER {
+            for y in 0..Self::BOARD_MAX_NUMBER {
+                let cell = &self.cells[x][y];
+
+                if !cell.editable {
+                    fixed_cells.push((cell.x, cell.y));
+                }
+            }
+        }
+
+        fixed_cells
+    }
+
+    pub fn get_cells_from_box(&self, box_i: usize, box_j: usize) -> Vec<&SudokuCell> {
+        let mut cells = Vec::with_capacity(Self::BOARD_N * Self::BOARD_N);
+
+        for x in 0..Self::BOARD_N {
+            for y in 0..Self::BOARD_N {
+                cells.push(&self.cells[box_i * Self::BOARD_N + x][box_j * Self::BOARD_N + y]);
+            }
+        }
+
+        cells
     }
 
     pub fn all_cells(&self) -> Vec<&SudokuCell> {

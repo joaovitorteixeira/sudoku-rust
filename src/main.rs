@@ -12,7 +12,7 @@ use crate::{
     sudoku::{
         algorithms::{
             backtracking::Backtracking, base_algorithms::BaseAlgorithms,
-            candidate_election::CandidateElection,
+            candidate_election::CandidateElection, simulated_annealing::SimulatedAnnealing,
         },
         board::CellType,
     },
@@ -22,6 +22,7 @@ use crate::{
 enum Algorithms {
     Backtracking,
     CandidateElection,
+    SimulatedAnnealing,
 }
 
 mod cli;
@@ -50,6 +51,9 @@ fn main() {
                 Algorithms::Backtracking => Backtracking::new(&mut board, board_tx).resolve(),
                 Algorithms::CandidateElection => {
                     CandidateElection::new(&mut board, board_tx).resolve()
+                }
+                Algorithms::SimulatedAnnealing => {
+                    SimulatedAnnealing::new(&mut board, board_tx).resolve()
                 }
             })
             .join()
@@ -82,6 +86,9 @@ fn read_args() -> (Option<u64>, Option<Algorithms>) {
                         "backtracking" | "bt" => algorithm = Some(Algorithms::Backtracking),
                         "candidate" | "candidateelection" | "ce" => {
                             algorithm = Some(Algorithms::CandidateElection)
+                        }
+                        "simulatedannealing" | "sa" => {
+                            algorithm = Some(Algorithms::SimulatedAnnealing)
                         }
                         _ => {}
                     }

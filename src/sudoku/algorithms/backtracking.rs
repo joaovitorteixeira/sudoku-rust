@@ -41,7 +41,7 @@ impl<'a> BaseAlgorithms<'a> for Backtracking<'a> {
                     break;
                 } else {
                     if current_value.unwrap() >= SudokuBoard::BOARD_MAX_NUMBER as CellType {
-                        let _ = board.update_value(x, y, None).unwrap();
+                        let _ = board.set_cell(x, y, None).unwrap();
                         perf.incr();
 
                         backtrack_index -= 1;
@@ -59,7 +59,7 @@ impl<'a> BaseAlgorithms<'a> for Backtracking<'a> {
             }
 
             if current_value.unwrap() > SudokuBoard::BOARD_MAX_NUMBER as CellType {
-                let _ = board.update_value(x, y, None).unwrap();
+                let _ = board.set_cell(x, y, None).unwrap();
                 perf.incr();
                 backtrack_index -= 1;
             }

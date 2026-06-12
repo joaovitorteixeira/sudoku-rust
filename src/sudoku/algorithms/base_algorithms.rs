@@ -20,7 +20,7 @@ pub trait BaseAlgorithms<'a> {
         y: usize,
         value: Option<CellType>,
     ) -> bool {
-        let res = board.update_value(x, y, value);
+        let res = board.set_cell(x, y, value);
         perf.incr();
 
         let is_ok = res.is_ok();

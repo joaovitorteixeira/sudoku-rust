@@ -101,7 +101,7 @@ impl<'a> BaseAlgorithms<'a> for CandidateElection<'a> {
             }
 
             if index >= candidate_len {
-                let _ = this.board.update_value(x, y, None).unwrap();
+                let _ = this.board.set_cell(x, y, None).unwrap();
                 perf.incr();
                 backtrack_index -= 1;
             }
