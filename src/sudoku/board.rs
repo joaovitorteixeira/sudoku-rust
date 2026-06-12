@@ -1,7 +1,5 @@
 const BOARD_N: usize = 3;
 
-type SudokuBox = [[SudokuCell; BOARD_N]; BOARD_N];
-type Board = [[SudokuBox; BOARD_N]; BOARD_N];
 pub type CellType = u16;
 
 #[derive(Debug, Clone, Copy)]
@@ -16,48 +14,30 @@ impl SudokuCell {
     fn new(value: Option<CellType>) -> Self {
         SudokuCell {
             value,
-            editable: if value.is_some() { false } else { true },
+            editable: value.is_none(),
             x: 0,
             y: 0,
         }
     }
 }
+
 #[derive(Debug)]
 pub struct SudokuBoard {
-    board: Board,
+    cells: [[SudokuCell; BOARD_MAX_NUMBER]; BOARD_MAX_NUMBER],
 }
+
+const BOARD_MAX_NUMBER: usize = BOARD_N * BOARD_N;
 
 impl SudokuBoard {
     pub const BOARD_N: usize = BOARD_N;
-    pub const BOARD_MAX_NUMBER: usize = Self::BOARD_N.pow(2);
+    pub const BOARD_MAX_NUMBER: usize = BOARD_MAX_NUMBER;
 
     pub fn valid_values() -> Vec<CellType> {
-        (1..=SudokuBoard::BOARD_MAX_NUMBER as CellType).collect()
+        (1..=Self::BOARD_MAX_NUMBER as CellType).collect()
     }
 
-    fn initialize_box() -> SudokuBox {
-        ([[SudokuCell::new(None); Self::BOARD_N]; Self::BOARD_N]).into()
-    }
-
-    fn initialize_board() -> Board {
-        (
-            [
-                Self::initialize_box(),
-                Self::initialize_box(),
-                Self::initialize_box(),
-            ],
-            [
-                Self::initialize_box(),
-                Self::initialize_box(),
-                Self::initialize_box(),
-            ],
-            [
-                Self::initialize_box(),
-                Self::initialize_box(),
-                Self::initialize_box(),
-            ],
-        )
-            .into()
+    fn initialize_board() -> [[SudokuCell; BOARD_MAX_NUMBER]; BOARD_MAX_NUMBER] {
+        [[SudokuCell::new(None); BOARD_MAX_NUMBER]; BOARD_MAX_NUMBER]
     }
 
     pub fn new(list: Vec<Vec<Option<CellType>>>) -> Result<Self, String> {
@@ -65,75 +45,33 @@ impl SudokuBoard {
             return Err("The provided list must have 9 lines".to_string());
         }
 
-        let mut sudoku_board: SudokuBoard = SudokuBoard {
-            board: Self::initialize_board(),
+        let mut sudoku_board = SudokuBoard {
+            cells: Self::initialize_board(),
         };
 
         for (line_index, row) in list.iter().enumerate() {
-            if row.len() != Self::BOARD_MAX_NUMBER.into() {
+            if row.len() != Self::BOARD_MAX_NUMBER {
                 return Err("The provided list must have 9 lines".to_string());
             }
 
             for (column_index, value) in row.iter().enumerate() {
-                let cell_result =
-                    sudoku_board.find_cell_from_coordinates_mut(line_index, column_index);
-                if let Ok(cell) = cell_result {
-                    cell.value = *value;
-                    cell.editable = value.is_none();
-                    cell.x = line_index;
-                    cell.y = column_index;
-                } else {
-                    return Err(cell_result.unwrap_err());
-                }
+                let cell = &mut sudoku_board.cells[line_index][column_index];
+                cell.value = *value;
+                cell.editable = value.is_none();
+                cell.x = line_index;
+                cell.y = column_index;
             }
         }
 
         Ok(sudoku_board)
     }
 
-    fn decompose_coordinates(x: usize, y: usize) -> (usize, usize, usize, usize) {
-        let board_row_index = x / Self::BOARD_N;
-        let board_column_index = y / Self::BOARD_N;
-        let box_row_index = x % Self::BOARD_N;
-        let box_column_index = y % Self::BOARD_N;
-        (
-            board_row_index,
-            board_column_index,
-            box_row_index,
-            box_column_index,
-        )
-    }
-
     pub fn find_cell_from_coordinates(&self, x: usize, y: usize) -> Result<&SudokuCell, String> {
-        let decomposed_coordinates = Self::decompose_coordinates(x, y);
-        let sudoku_box: &SudokuBox =
-            &self.board[decomposed_coordinates.0][decomposed_coordinates.1];
-        let cell_result: Option<&SudokuCell> =
-            Some(&sudoku_box[decomposed_coordinates.2][decomposed_coordinates.3]);
-
-        if let Some(cell) = cell_result {
-            Ok(cell)
-        } else {
-            Err(format!("Cell not found at coordinates ({}, {})", x, y))
+        if x >= Self::BOARD_MAX_NUMBER || y >= Self::BOARD_MAX_NUMBER {
+            return Err(format!("Invalid coordinates ({}, {})", x, y));
         }
-    }
 
-    fn find_cell_from_coordinates_mut(
-        &mut self,
-        x: usize,
-        y: usize,
-    ) -> Result<&mut SudokuCell, String> {
-        let decomposed_coordinates = Self::decompose_coordinates(x, y);
-        let sudoku_box: &mut SudokuBox =
-            &mut self.board[decomposed_coordinates.0][decomposed_coordinates.1];
-        let cell_result: Option<&mut SudokuCell> =
-            Some(&mut sudoku_box[decomposed_coordinates.2][decomposed_coordinates.3]);
-
-        if let Some(cell) = cell_result {
-            Ok(cell)
-        } else {
-            Err(format!("Cell not found at coordinates ({}, {})", x, y))
-        }
+        Ok(&self.cells[x][y])
     }
 
     pub fn update_value(
@@ -142,7 +80,7 @@ impl SudokuBoard {
         y: usize,
         value: Option<CellType>,
     ) -> Result<(), String> {
-        if x >= Self::BOARD_MAX_NUMBER.into() || y >= Self::BOARD_MAX_NUMBER.into() {
+        if x >= Self::BOARD_MAX_NUMBER || y >= Self::BOARD_MAX_NUMBER {
             return Err(format!("Invalid coordinates ({}, {})", x, y));
         }
 
@@ -150,18 +88,8 @@ impl SudokuBoard {
             return Err("Invalid Insertion".to_string());
         }
 
-        let result = {
-            match self.find_cell_from_coordinates_mut(x, y) {
-                Ok(cell_ptr) => {
-                    cell_ptr.value = value;
-
-                    Ok(())
-                }
-                Err(e) => Err(e),
-            }
-        };
-
-        result
+        self.cells[x][y].value = value;
+        Ok(())
     }
 
     fn calculate_final_cost(&self) -> Result<u16, String> {
@@ -172,18 +100,17 @@ impl SudokuBoard {
                 let mut missing_values_in_column = Self::valid_values();
 
                 for y in 0..Self::BOARD_MAX_NUMBER {
-                    let cell_row_result = self.find_cell_from_coordinates(x, y)?;
-                    let cell_column_result = self.find_cell_from_coordinates(y, x)?;
+                    let row_value = self.cells[x][y].value;
+                    let column_value = self.cells[y][x].value;
 
-                    if cell_row_result.value.is_none() {
+                    if row_value.is_none() {
                         return Err(format!("Cell {},{} is empty", x, y));
-                    } else if cell_column_result.value.is_none() {
+                    } else if column_value.is_none() {
                         return Err(format!("Cell {},{} is empty", y, x));
                     }
 
-                    missing_values_in_row.retain(|&value| value != cell_row_result.value.unwrap());
-                    missing_values_in_column
-                        .retain(|&value| value != cell_column_result.value.unwrap());
+                    missing_values_in_row.retain(|&value| value != row_value.unwrap());
+                    missing_values_in_column.retain(|&value| value != column_value.unwrap());
                 }
 
                 cost += missing_values_in_row.iter().sum::<CellType>()
@@ -196,22 +123,26 @@ impl SudokuBoard {
         let box_cost = {
             let mut cost = 0;
 
-            for boxes in self.board {
-                let mut missing_values_in_box = Self::valid_values();
+            for box_row in 0..Self::BOARD_N {
+                for box_col in 0..Self::BOARD_N {
+                    let mut missing_values_in_box = Self::valid_values();
+                    let start_x = box_row * Self::BOARD_N;
+                    let start_y = box_col * Self::BOARD_N;
 
-                for sudoku_box in boxes {
-                    for row in sudoku_box {
-                        for cell in row {
-                            if cell.value.is_none() {
-                                return Err(format!("Cell {}, {} is empty", cell.x, cell.y));
+                    for x in start_x..start_x + Self::BOARD_N {
+                        for y in start_y..start_y + Self::BOARD_N {
+                            let value = self.cells[x][y].value;
+
+                            if value.is_none() {
+                                return Err(format!("Cell {}, {} is empty", x, y));
                             }
 
-                            missing_values_in_box.retain(|&value| cell.value.unwrap() != value);
+                            missing_values_in_box.retain(|&v| value.unwrap() != v);
                         }
                     }
-                }
 
-                cost += missing_values_in_box.iter().sum::<CellType>();
+                    cost += missing_values_in_box.iter().sum::<CellType>();
+                }
             }
 
             cost
@@ -236,52 +167,55 @@ impl SudokuBoard {
 
     pub fn is_valid_insertion(&self, x: usize, y: usize, new_value: Option<CellType>) -> bool {
         if let Some(value) = new_value {
-            return self.is_valid_box(x, y, value)
+            self.is_valid_box(x, y, value)
                 && self.is_valid_line(x, value)
-                && self.is_valid_column(y, value);
+                && self.is_valid_column(y, value)
         } else {
-            return true;
+            true
         }
     }
 
     fn is_valid_box(&self, x: usize, y: usize, new_value: CellType) -> bool {
-        let decomposed_coordinates = Self::decompose_coordinates(x, y);
-        let sudoku_box = self.board[decomposed_coordinates.0][decomposed_coordinates.1];
-        sudoku_box.iter().all(|&lines| {
-            let result = lines.iter().all(|&cell| cell.value != Some(new_value));
-            return result;
-        })
+        let start_x = (x / Self::BOARD_N) * Self::BOARD_N;
+        let start_y = (y / Self::BOARD_N) * Self::BOARD_N;
+
+        for i in start_x..start_x + Self::BOARD_N {
+            for j in start_y..start_y + Self::BOARD_N {
+                if self.cells[i][j].value == Some(new_value) {
+                    return false;
+                }
+            }
+        }
+
+        true
     }
 
     fn is_valid_line(&self, x: usize, new_value: CellType) -> bool {
-        for y in 0..Self::BOARD_MAX_NUMBER.into() {
-            let cell = self.find_cell_from_coordinates(x, y).unwrap();
-
-            if cell.value == Some(new_value) {
+        for y in 0..Self::BOARD_MAX_NUMBER {
+            if self.cells[x][y].value == Some(new_value) {
                 return false;
             }
         }
 
-        return true;
+        true
     }
 
     fn is_valid_column(&self, y: usize, new_value: CellType) -> bool {
-        for x in 0..Self::BOARD_MAX_NUMBER.into() {
-            let cell = self.find_cell_from_coordinates(x, y).unwrap();
-
-            if cell.value == Some(new_value) {
+        for x in 0..Self::BOARD_MAX_NUMBER {
+            if self.cells[x][y].value == Some(new_value) {
                 return false;
             }
         }
 
-        return true;
+        true
     }
 
     pub fn get_editable_cells(&self) -> Vec<(usize, usize)> {
         let mut editable_cells = vec![];
-        for x in 0..Self::BOARD_MAX_NUMBER.into() {
-            for y in 0..Self::BOARD_MAX_NUMBER.into() {
-                let cell = self.find_cell_from_coordinates(x, y).unwrap();
+
+        for x in 0..Self::BOARD_MAX_NUMBER {
+            for y in 0..Self::BOARD_MAX_NUMBER {
+                let cell = &self.cells[x][y];
 
                 if cell.editable {
                     editable_cells.push((cell.x, cell.y));
@@ -297,9 +231,7 @@ impl SudokuBoard {
 
         for x in 0..Self::BOARD_MAX_NUMBER {
             for y in 0..Self::BOARD_MAX_NUMBER {
-                if let Ok(cell) = self.find_cell_from_coordinates(x, y) {
-                    cells.push(cell);
-                }
+                cells.push(&self.cells[x][y]);
             }
         }
 
