@@ -4,7 +4,7 @@ use crate::{
     cli::game_updater::CliChannelEvent,
     sudoku::{
         algorithms::perf::PerfTracker,
-        board::{CellType, SudokuBoard, SudokuCell},
+        board::{CellType, SudokuBoard},
     },
 };
 
@@ -26,12 +26,9 @@ pub trait BaseAlgorithms<'a> {
         let is_ok = res.is_ok();
 
         if is_ok {
-            let _ = board_tx.send(CliChannelEvent::Update(SudokuCell {
-                value: value,
-                editable: true,
-                x,
-                y,
-            }));
+            if let Ok(cell) = board.find_cell_from_coordinates(x, y) {
+                let _ = board_tx.send(CliChannelEvent::Update(*cell));
+            }
         }
 
         is_ok
