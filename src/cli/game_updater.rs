@@ -12,7 +12,6 @@ pub struct GameUpdater {
 
 pub enum CliChannelEvent {
     Update(SudokuCell),
-    ForceLastPrint,
 }
 
 impl GameUpdater {
@@ -58,7 +57,6 @@ impl GameUpdater {
 
                             last_message = Some(out);
                         }
-                        CliChannelEvent::ForceLastPrint => break,
                     }
                 }
                 Err(_) => break,

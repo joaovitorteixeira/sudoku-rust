@@ -32,7 +32,7 @@ fn main() {
         Ok(board_file) => board_file,
         Err(msg) => panic!("{}", msg),
     };
-    let board = sudoku::board::SudokuBoard::new(board_file, board_tx.clone());
+    let board = sudoku::board::SudokuBoard::new(board_file);
     let mut game_updater = GameUpdater::new(board_rx, throttle_ms);
     let game_updater_thread = thread::spawn(move || {
         let _ = game_updater.listen();
@@ -44,11 +44,11 @@ fn main() {
 
             let _ = thread::spawn(move || match alg {
                 Algorithms::Backtracking => {
-                    let backtracking = Backtracking::new(&mut board);
+                    let backtracking = Backtracking::new(&mut board, board_tx);
                     backtracking.resolve();
                 }
                 Algorithms::CandidateElection => {
-                    let candidate = CandidateElection::new(&mut board);
+                    let candidate = CandidateElection::new(&mut board, board_tx);
                     candidate.resolve();
                 }
             })
@@ -57,7 +57,6 @@ fn main() {
         Err(message) => panic!("{message}"),
     }
 
-    let _ = board_tx.send(CliChannelEvent::ForceLastPrint);
     let _ = game_updater_thread.join();
 }
 

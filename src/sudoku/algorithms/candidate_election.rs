@@ -1,6 +1,11 @@
-use crate::sudoku::{
-    algorithms::{base_algorithms::BaseAlgorithms, perf::PerfTracker},
-    board::{CellType, SudokuBoard},
+use std::sync::mpsc::Sender;
+
+use crate::{
+    cli::{board_notifier::broadcast_board, game_updater::CliChannelEvent},
+    sudoku::{
+        algorithms::{base_algorithms::BaseAlgorithms, perf::PerfTracker},
+        board::{CellType, SudokuBoard},
+    },
 };
 
 struct EditableCells {
@@ -12,10 +17,11 @@ struct EditableCells {
 pub struct CandidateElection<'a> {
     board: &'a mut SudokuBoard,
     editable_cells: Vec<EditableCells>,
+    board_tx: Sender<CliChannelEvent>,
 }
 
 impl<'a> BaseAlgorithms<'a> for CandidateElection<'a> {
-    fn new(sudoku_board: &'a mut SudokuBoard) -> Self {
+    fn new(sudoku_board: &'a mut SudokuBoard, board_tx: Sender<CliChannelEvent>) -> Self {
         let cells = sudoku_board.get_editable_cells();
         let mut editable_cells = Vec::with_capacity(cells.len());
 
@@ -31,6 +37,7 @@ impl<'a> BaseAlgorithms<'a> for CandidateElection<'a> {
         CandidateElection {
             board: sudoku_board,
             editable_cells,
+            board_tx,
         }
     }
 
@@ -64,12 +71,12 @@ impl<'a> BaseAlgorithms<'a> for CandidateElection<'a> {
             while index < candidate_len {
                 let value: u16 = this.editable_cells[backtrack_index].candidates[index];
 
-                if Self::update_and_incr(board, &mut perf, x, y, Some(value)) {
+                if Self::update_and_incr(board, &mut perf, &this.board_tx, x, y, Some(value)) {
                     backtrack_index += 1;
                     break;
                 } else {
                     if index >= candidate_len {
-                        let _ = Self::update_and_incr(board, &mut perf, x, y, None);
+                        let _ = Self::update_and_incr(board, &mut perf, &this.board_tx, x, y, None);
 
                         backtrack_index -= 1;
                         (x, y, candidate_len) = {
@@ -101,12 +108,13 @@ impl<'a> BaseAlgorithms<'a> for CandidateElection<'a> {
         }
 
         perf.finish();
-        let result = this.board.finish();
+        let result = this.board.validate_solution();
 
         if result.is_err() {
             panic!("{:?}", result)
         }
 
+        broadcast_board(this.board, &this.board_tx);
         perf.print_summary();
     }
 }

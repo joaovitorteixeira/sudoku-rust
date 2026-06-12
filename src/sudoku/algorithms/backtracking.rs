@@ -1,3 +1,7 @@
+use std::sync::mpsc::Sender;
+
+use crate::cli::board_notifier::broadcast_board;
+use crate::cli::game_updater::CliChannelEvent;
 use crate::sudoku::algorithms::base_algorithms::BaseAlgorithms;
 use crate::sudoku::algorithms::perf::PerfTracker;
 use crate::sudoku::board::{CellType, SudokuBoard};
@@ -5,14 +9,16 @@ use crate::sudoku::board::{CellType, SudokuBoard};
 pub struct Backtracking<'a> {
     board: &'a mut SudokuBoard,
     editable_cells: Vec<(usize, usize)>,
+    board_tx: Sender<CliChannelEvent>,
 }
 
 impl<'a> BaseAlgorithms<'a> for Backtracking<'a> {
-    fn new(board: &'a mut SudokuBoard) -> Self {
+    fn new(board: &'a mut SudokuBoard, board_tx: Sender<CliChannelEvent>) -> Self {
         let editable_cells = board.get_editable_cells();
         Backtracking {
             board,
             editable_cells,
+            board_tx,
         }
     }
 
@@ -32,7 +38,7 @@ impl<'a> BaseAlgorithms<'a> for Backtracking<'a> {
             let board = &mut *this.board;
 
             while current_value.unwrap() <= SudokuBoard::BOARD_MAX_NUMBER as CellType {
-                if Self::update_and_incr(board, &mut perf, x, y, current_value) {
+                if Self::update_and_incr(board, &mut perf, &this.board_tx, x, y, current_value) {
                     backtrack_index += 1;
                     break;
                 } else {
@@ -62,12 +68,13 @@ impl<'a> BaseAlgorithms<'a> for Backtracking<'a> {
         }
 
         perf.finish();
-        let result = this.board.finish();
+        let result = this.board.validate_solution();
 
         if result.is_err() {
             panic!("{:?}", result)
         }
 
+        broadcast_board(this.board, &this.board_tx);
         perf.print_summary();
     }
 }

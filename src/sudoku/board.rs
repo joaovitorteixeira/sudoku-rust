@@ -1,11 +1,7 @@
-use std::sync::mpsc::Sender;
-
-use crate::cli::game_updater::CliChannelEvent;
-
 const BOARD_N: usize = 3;
 
-type Box = [[SudokuCell; BOARD_N]; BOARD_N];
-type Board = [[Box; BOARD_N]; BOARD_N];
+type SudokuBox = [[SudokuCell; BOARD_N]; BOARD_N];
+type Board = [[SudokuBox; BOARD_N]; BOARD_N];
 pub type CellType = u16;
 
 #[derive(Debug, Clone, Copy)]
@@ -29,7 +25,6 @@ impl SudokuCell {
 #[derive(Debug)]
 pub struct SudokuBoard {
     board: Board,
-    board_tx: Sender<CliChannelEvent>,
 }
 
 impl SudokuBoard {
@@ -40,7 +35,7 @@ impl SudokuBoard {
         (1..=SudokuBoard::BOARD_MAX_NUMBER as CellType).collect()
     }
 
-    fn initialize_box() -> Box {
+    fn initialize_box() -> SudokuBox {
         ([[SudokuCell::new(None); Self::BOARD_N]; Self::BOARD_N]).into()
     }
 
@@ -65,17 +60,13 @@ impl SudokuBoard {
             .into()
     }
 
-    pub fn new(
-        list: Vec<Vec<Option<CellType>>>,
-        board_tx: Sender<CliChannelEvent>,
-    ) -> Result<Self, String> {
+    pub fn new(list: Vec<Vec<Option<CellType>>>) -> Result<Self, String> {
         if list.len() != Self::BOARD_MAX_NUMBER {
             return Err("The provided list must have 9 lines".to_string());
         }
 
         let mut sudoku_board: SudokuBoard = SudokuBoard {
             board: Self::initialize_board(),
-            board_tx,
         };
 
         for (line_index, row) in list.iter().enumerate() {
@@ -115,7 +106,8 @@ impl SudokuBoard {
 
     pub fn find_cell_from_coordinates(&self, x: usize, y: usize) -> Result<&SudokuCell, String> {
         let decomposed_coordinates = Self::decompose_coordinates(x, y);
-        let sudoku_box: &Box = &self.board[decomposed_coordinates.0][decomposed_coordinates.1];
+        let sudoku_box: &SudokuBox =
+            &self.board[decomposed_coordinates.0][decomposed_coordinates.1];
         let cell_result: Option<&SudokuCell> =
             Some(&sudoku_box[decomposed_coordinates.2][decomposed_coordinates.3]);
 
@@ -132,7 +124,7 @@ impl SudokuBoard {
         y: usize,
     ) -> Result<&mut SudokuCell, String> {
         let decomposed_coordinates = Self::decompose_coordinates(x, y);
-        let sudoku_box: &mut Box =
+        let sudoku_box: &mut SudokuBox =
             &mut self.board[decomposed_coordinates.0][decomposed_coordinates.1];
         let cell_result: Option<&mut SudokuCell> =
             Some(&mut sudoku_box[decomposed_coordinates.2][decomposed_coordinates.3]);
@@ -232,21 +224,11 @@ impl SudokuBoard {
         Ok(total)
     }
 
-    pub fn finish(&self) -> Result<(), String> {
+    pub fn validate_solution(&self) -> Result<(), String> {
         let cost = self.calculate_final_cost()?;
 
         if cost > 0 {
             return Err("Sudoku does not have a optimal solution".to_string());
-        }
-
-        for x in 0..Self::BOARD_MAX_NUMBER {
-            for y in 0..Self::BOARD_MAX_NUMBER {
-                let cell_result = self.find_cell_from_coordinates(x, y);
-
-                if let Ok(cell) = cell_result {
-                    let _ = self.board_tx.send(CliChannelEvent::Update(*cell));
-                }
-            }
         }
 
         Ok(())
@@ -308,5 +290,19 @@ impl SudokuBoard {
         }
 
         editable_cells
+    }
+
+    pub fn all_cells(&self) -> Vec<&SudokuCell> {
+        let mut cells = Vec::with_capacity(Self::BOARD_MAX_NUMBER * Self::BOARD_MAX_NUMBER);
+
+        for x in 0..Self::BOARD_MAX_NUMBER {
+            for y in 0..Self::BOARD_MAX_NUMBER {
+                if let Ok(cell) = self.find_cell_from_coordinates(x, y) {
+                    cells.push(cell);
+                }
+            }
+        }
+
+        cells
     }
 }
