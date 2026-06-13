@@ -1,4 +1,4 @@
-use std::{sync::mpsc::Sender, thread::sleep, time::Duration};
+use std::sync::mpsc::Sender;
 
 use crate::{
     cli::{board_notifier::broadcast_board, game_updater::CliChannelEvent},
@@ -53,42 +53,53 @@ impl<'a> BaseAlgorithms<'a> for SimulatedAnnealing<'a> {
             .calculate_raw_column_cost()
             .expect("Failed to calculate cost");
 
-        self.temperature = self.estimate_initial_temperature(cost);
-        cost = self
-            .board
-            .calculate_raw_column_cost()
-            .expect("Failed to calculate cost");
+        let initial_temperature = self.estimate_initial_temperature(cost);
+        self.temperature = initial_temperature;
 
-        loop {
-            let ((x1, y1), (x2, y2)) = self.get_random_swap_pair();
-            let (old_value1, old_value2) = self
-                .swap_cells(x1, y1, x2, y2)
-                .expect("Failed to swap cells");
+        const ALPHA: f64 = 0.99;
+        const MIN_TEMPERATURE: f64 = 0.01;
+        const REHEAT_AFTER: usize = 20;
+        const MAX_REHEATS: usize = 100;
 
-            if let Ok(new_cost) = self.board.calculate_raw_column_cost() {
-                let delta = new_cost - cost;
+        let mut chains_without_improvement = 0;
+        let mut best_cost = cost;
+        let mut reheat_count = 0;
 
-                let accept = if delta <= 0 {
-                    true
-                } else {
-                    rand::random::<f64>() < (-(delta as f64) / self.temperature).exp()
-                };
+        'search: loop {
+            for _ in 0..self.markov_chain_length {
+                cost = self.try_one_move(cost).expect("Failed to try one move");
 
-                if accept {
-                    cost = new_cost;
-                    if cost <= 0 {
-                        break;
-                    }
-                } else {
-                    self.board
-                        .set_cell_unchecked(x1, y1, old_value1)
-                        .expect("Failed to set cell");
-                    self.board
-                        .set_cell_unchecked(x2, y2, old_value2)
-                        .expect("Failed to set cell");
+                if cost == 0 {
+                    break 'search;
                 }
+            }
+
+            if cost < best_cost {
+                best_cost = cost;
+                chains_without_improvement = 0;
             } else {
-                panic!("Failed to calculate cost");
+                chains_without_improvement += 1;
+            }
+
+            self.temperature *= ALPHA;
+
+            let should_reheat = self.temperature < MIN_TEMPERATURE
+                || chains_without_improvement >= REHEAT_AFTER;
+
+            if should_reheat {
+                if reheat_count >= MAX_REHEATS {
+                    break 'search;
+                }
+
+                reheat_count += 1;
+                self.temperature = initial_temperature;
+                self.random_initial_solution();
+                cost = self
+                    .board
+                    .calculate_raw_column_cost()
+                    .expect("Failed to calculate cost");
+                best_cost = cost;
+                chains_without_improvement = 0;
             }
         }
 
@@ -98,6 +109,8 @@ impl<'a> BaseAlgorithms<'a> for SimulatedAnnealing<'a> {
             .validate_solution()
             .expect("Failed to validate solution");
 
+        broadcast_board(self.board, &self.board_tx);
+
         self.perf
     }
 }
@@ -106,24 +119,19 @@ impl<'a> SimulatedAnnealing<'a> {
     fn random_initial_solution(&mut self) {
         for box_i in 0..SudokuBoard::BOARD_N {
             for box_j in 0..SudokuBoard::BOARD_N {
-                let (mut fixed_values, empty_cells): (Vec<u16>, Vec<(usize, usize)>) = {
-                    let cells = self.board.get_cells_from_box(box_i, box_j);
-                    let fixed_values = cells.iter().filter_map(|cell| cell.value).collect();
-                    let empty_cells = cells
-                        .iter()
-                        .filter(|cell| cell.value.is_none())
-                        .map(|cell| (cell.x, cell.y))
-                        .collect();
-                    (fixed_values, empty_cells)
-                };
+                let cells = self.board.get_cells_from_box(box_i, box_j);
+                let mut fixed_values: Vec<u16> = cells
+                    .iter()
+                    .filter(|cell| !cell.editable)
+                    .filter_map(|cell| cell.value)
+                    .collect();
 
-                for (x, y) in empty_cells {
+                for &(x, y) in &self.editable_by_box[box_i][box_j] {
                     let value = self.get_random_value(&fixed_values);
                     self.board
                         .set_cell_unchecked(x, y, Some(value))
                         .expect("Failed to set cell");
                     fixed_values.push(value);
-                    broadcast_board(self.board, &self.board_tx);
                 }
             }
         }
@@ -166,7 +174,8 @@ impl<'a> SimulatedAnnealing<'a> {
         y1: usize,
         x2: usize,
         y2: usize,
-    ) -> Result<((Option<u16>, Option<u16>)), String> {
+        record_perf: bool,
+    ) -> (Option<u16>, Option<u16>) {
         let (old_value1, old_value2) = {
             let cell1 = self
                 .board
@@ -185,20 +194,20 @@ impl<'a> SimulatedAnnealing<'a> {
             .set_cell_unchecked(x2, y2, old_value1)
             .expect("Failed to set cell");
 
-        self.perf.incr();
+        if record_perf {
+            self.perf.incr();
+        }
 
-        Ok((old_value1, old_value2))
+        (old_value1, old_value2)
     }
 
-    fn estimate_initial_temperature(&mut self, mut cost: u16) -> f64 {
+    fn estimate_initial_temperature(&mut self, cost: u16) -> f64 {
         const SAMPLE_SIZE: usize = 100;
         let mut deltas = Vec::with_capacity(SAMPLE_SIZE);
 
         for _ in 0..SAMPLE_SIZE {
             let ((x1, y1), (x2, y2)) = self.get_random_swap_pair();
-            let (old_value1, old_value2) = self
-                .swap_cells(x1, y1, x2, y2)
-                .expect("Failed to swap cells");
+            let (old_value1, old_value2) = self.swap_cells(x1, y1, x2, y2, false);
             let new_cost = self
                 .board
                 .calculate_raw_column_cost()
@@ -235,5 +244,26 @@ impl<'a> SimulatedAnnealing<'a> {
             .flat_map(|row| row.iter())
             .map(|cells| cells.len() * cells.len())
             .sum()
+    }
+
+    fn try_one_move(&mut self, cost: u16) -> Result<u16, String> {
+        let ((x1, y1), (x2, y2)) = self.get_random_swap_pair();
+        let (old_value1, old_value2) = self.swap_cells(x1, y1, x2, y2, true);
+        let new_cost = self.board.calculate_raw_column_cost()?;
+        let delta = new_cost as i32 - cost as i32;
+
+        let accept = if delta <= 0 {
+            true
+        } else {
+            rand::random::<f64>() < (-(delta as f64) / self.temperature).exp()
+        };
+
+        if accept {
+            Ok(new_cost)
+        } else {
+            self.board.set_cell_unchecked(x1, y1, old_value1)?;
+            self.board.set_cell_unchecked(x2, y2, old_value2)?;
+            Ok(cost)
+        }
     }
 }
