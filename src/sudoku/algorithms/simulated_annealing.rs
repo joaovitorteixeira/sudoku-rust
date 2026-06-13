@@ -83,8 +83,8 @@ impl<'a> BaseAlgorithms<'a> for SimulatedAnnealing<'a> {
 
             self.temperature *= ALPHA;
 
-            let should_reheat = self.temperature < MIN_TEMPERATURE
-                || chains_without_improvement >= REHEAT_AFTER;
+            let should_reheat =
+                self.temperature < MIN_TEMPERATURE || chains_without_improvement >= REHEAT_AFTER;
 
             if should_reheat {
                 if reheat_count >= MAX_REHEATS {
