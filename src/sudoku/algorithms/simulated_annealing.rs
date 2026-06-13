@@ -13,6 +13,8 @@ pub struct SimulatedAnnealing<'a> {
     editable_by_box: [[Vec<(usize, usize)>; SudokuBoard::BOARD_N]; SudokuBoard::BOARD_N],
     board_tx: Sender<CliChannelEvent>,
     perf: PerfTracker,
+    temperature: f64,
+    markov_chain_length: usize,
 }
 
 impl<'a> BaseAlgorithms<'a> for SimulatedAnnealing<'a> {
@@ -30,20 +32,28 @@ impl<'a> BaseAlgorithms<'a> for SimulatedAnnealing<'a> {
                     .collect()
             })
         });
+        let markov_chain_length = Self::markov_chain_length(&editable_by_box);
 
         SimulatedAnnealing {
             board: sudoku_board,
             board_tx,
             editable_by_box,
             perf: PerfTracker::new(),
+            temperature: 1.0,
+            markov_chain_length,
         }
     }
 
     fn resolve(mut self) -> super::perf::PerfTracker {
-        let mut cost = 0;
-
         self.perf.start();
         self.random_initial_solution();
+
+        let mut cost = self
+            .board
+            .calculate_raw_column_cost()
+            .expect("Failed to calculate cost");
+
+        self.temperature = self.estimate_initial_temperature(cost);
         cost = self
             .board
             .calculate_raw_column_cost()
@@ -58,7 +68,11 @@ impl<'a> BaseAlgorithms<'a> for SimulatedAnnealing<'a> {
             if let Ok(new_cost) = self.board.calculate_raw_column_cost() {
                 let delta = new_cost - cost;
 
-                let accept = if delta <= 0 { true } else { false }; // TODO: Implement acceptance probability
+                let accept = if delta <= 0 {
+                    true
+                } else {
+                    rand::random::<f64>() < (-(delta as f64) / self.temperature).exp()
+                };
 
                 if accept {
                     cost = new_cost;
@@ -79,6 +93,11 @@ impl<'a> BaseAlgorithms<'a> for SimulatedAnnealing<'a> {
         }
 
         self.perf.finish();
+
+        self.board
+            .validate_solution()
+            .expect("Failed to validate solution");
+
         self.perf
     }
 }
@@ -169,5 +188,52 @@ impl<'a> SimulatedAnnealing<'a> {
         self.perf.incr();
 
         Ok((old_value1, old_value2))
+    }
+
+    fn estimate_initial_temperature(&mut self, mut cost: u16) -> f64 {
+        const SAMPLE_SIZE: usize = 100;
+        let mut deltas = Vec::with_capacity(SAMPLE_SIZE);
+
+        for _ in 0..SAMPLE_SIZE {
+            let ((x1, y1), (x2, y2)) = self.get_random_swap_pair();
+            let (old_value1, old_value2) = self
+                .swap_cells(x1, y1, x2, y2)
+                .expect("Failed to swap cells");
+            let new_cost = self
+                .board
+                .calculate_raw_column_cost()
+                .expect("Failed to calculate cost");
+            let delta = new_cost as i32 - cost as i32;
+            deltas.push(delta as f64);
+
+            self.board
+                .set_cell_unchecked(x1, y1, old_value1)
+                .expect("Failed to set cell");
+            self.board
+                .set_cell_unchecked(x2, y2, old_value2)
+                .expect("Failed to set cell");
+        }
+
+        self.std_dev(&deltas).max(1.0)
+    }
+
+    fn std_dev(&self, values: &[f64]) -> f64 {
+        if values.is_empty() {
+            return 1.0;
+        }
+
+        let mean = values.iter().sum::<f64>() / values.len() as f64;
+        let variance = values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / values.len() as f64;
+        variance.sqrt()
+    }
+
+    fn markov_chain_length(
+        editable_by_box: &[[Vec<(usize, usize)>; SudokuBoard::BOARD_N]; SudokuBoard::BOARD_N],
+    ) -> usize {
+        editable_by_box
+            .iter()
+            .flat_map(|row| row.iter())
+            .map(|cells| cells.len() * cells.len())
+            .sum()
     }
 }
