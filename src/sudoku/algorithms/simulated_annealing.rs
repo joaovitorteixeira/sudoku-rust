@@ -105,11 +105,13 @@ impl<'a> BaseAlgorithms<'a> for SimulatedAnnealing<'a> {
 
         self.perf.finish();
 
-        self.board
-            .validate_solution()
-            .expect("Failed to validate solution");
-
-        broadcast_board(self.board, &self.board_tx);
+        match self.board.validate_solution() {
+            Ok(()) => broadcast_board(self.board, &self.board_tx),
+            Err(message) => {
+                eprintln!("SA did not find a solution (cost={cost}): {message}");
+                broadcast_board(self.board, &self.board_tx);
+            }
+        }
 
         self.perf
     }
@@ -201,16 +203,61 @@ impl<'a> SimulatedAnnealing<'a> {
         (old_value1, old_value2)
     }
 
+    /// Row/column cost for lines touched by a same-box swap.
+    fn affected_lines_cost(
+        &self,
+        x1: usize,
+        y1: usize,
+        x2: usize,
+        y2: usize,
+    ) -> Result<u16, String> {
+        let mut cost = self.board.row_cost(x1)?;
+        cost = cost
+            .checked_add(self.board.column_cost(y1)?)
+            .ok_or_else(|| "Cost overflow".to_string())?;
+
+        if x2 != x1 {
+            cost = cost
+                .checked_add(self.board.row_cost(x2)?)
+                .ok_or_else(|| "Cost overflow".to_string())?;
+        }
+        if y2 != y1 {
+            cost = cost
+                .checked_add(self.board.column_cost(y2)?)
+                .ok_or_else(|| "Cost overflow".to_string())?;
+        }
+
+        Ok(cost)
+    }
+
+    /// Update total row/column cost after a swap (board must already be swapped).
+    fn cost_after_swap(
+        &self,
+        cost: u16,
+        x1: usize,
+        y1: usize,
+        x2: usize,
+        y2: usize,
+        old_affected_cost: u16,
+    ) -> Result<u16, String> {
+        let new_affected_cost = self.affected_lines_cost(x1, y1, x2, y2)?;
+        cost.checked_sub(old_affected_cost)
+            .and_then(|c| c.checked_add(new_affected_cost))
+            .ok_or_else(|| "Cost overflow".to_string())
+    }
+
     fn estimate_initial_temperature(&mut self, cost: u16) -> f64 {
         const SAMPLE_SIZE: usize = 100;
         let mut deltas = Vec::with_capacity(SAMPLE_SIZE);
 
         for _ in 0..SAMPLE_SIZE {
             let ((x1, y1), (x2, y2)) = self.get_random_swap_pair();
+            let old_affected = self
+                .affected_lines_cost(x1, y1, x2, y2)
+                .expect("Failed to calculate affected cost");
             let (old_value1, old_value2) = self.swap_cells(x1, y1, x2, y2, false);
             let new_cost = self
-                .board
-                .calculate_raw_column_cost()
+                .cost_after_swap(cost, x1, y1, x2, y2, old_affected)
                 .expect("Failed to calculate cost");
             let delta = new_cost as i32 - cost as i32;
             deltas.push(delta as f64);
@@ -248,8 +295,9 @@ impl<'a> SimulatedAnnealing<'a> {
 
     fn try_one_move(&mut self, cost: u16) -> Result<u16, String> {
         let ((x1, y1), (x2, y2)) = self.get_random_swap_pair();
+        let old_affected = self.affected_lines_cost(x1, y1, x2, y2)?;
         let (old_value1, old_value2) = self.swap_cells(x1, y1, x2, y2, true);
-        let new_cost = self.board.calculate_raw_column_cost()?;
+        let new_cost = self.cost_after_swap(cost, x1, y1, x2, y2, old_affected)?;
         let delta = new_cost as i32 - cost as i32;
 
         let accept = if delta <= 0 {

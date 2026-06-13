@@ -19,7 +19,7 @@ impl SudokuPrinter {
                 value: None,
                 x: 0,
                 y: 0,
-            }; 9]; 9],
+            }; SudokuBoard::BOARD_MAX_NUMBER]; SudokuBoard::BOARD_MAX_NUMBER],
         }
     }
 }
@@ -48,7 +48,7 @@ impl fmt::Display for SudokuPrinter {
                 };
                 box_line_str.push_str(&format!("{value} "));
 
-                if (y + 1) % 3 == 0 {
+                if (y + 1) % SudokuBoard::BOARD_N == 0 {
                     line_str.push_str(&"|".white());
                     line_str.push_str(&box_line_str);
                     box_line_str.clear();

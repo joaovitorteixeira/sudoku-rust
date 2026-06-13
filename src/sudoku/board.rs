@@ -102,28 +102,50 @@ impl SudokuBoard {
         Ok(())
     }
 
+    /// Sum of digits 1–BOARD_MAX_NUMBER missing from a filled line (row or column).
+    fn line_penalty(values: &[Option<CellType>]) -> Result<u16, String> {
+        let mut present = [false; Self::BOARD_MAX_NUMBER + 1];
+
+        for value in values {
+            let Some(v) = value else {
+                return Err("Line contains an empty cell".to_string());
+            };
+            let index = *v as usize;
+            if index == 0 || index >= present.len() {
+                return Err(format!("Invalid cell value {v}"));
+            }
+            present[index] = true;
+        }
+
+        Ok((1..=Self::BOARD_MAX_NUMBER as CellType)
+            .filter(|&d| !present[d as usize])
+            .sum())
+    }
+
+    pub(crate) fn row_cost(&self, row: usize) -> Result<u16, String> {
+        if row >= Self::BOARD_MAX_NUMBER {
+            return Err(format!("Invalid row {row}"));
+        }
+        let values: [Option<CellType>; Self::BOARD_MAX_NUMBER] =
+            std::array::from_fn(|col| self.cells[row][col].value);
+        Self::line_penalty(&values)
+    }
+
+    pub(crate) fn column_cost(&self, col: usize) -> Result<u16, String> {
+        if col >= Self::BOARD_MAX_NUMBER {
+            return Err(format!("Invalid column {col}"));
+        }
+        let values: [Option<CellType>; Self::BOARD_MAX_NUMBER] =
+            std::array::from_fn(|row| self.cells[row][col].value);
+        Self::line_penalty(&values)
+    }
+
     pub fn calculate_raw_column_cost(&self) -> Result<u16, String> {
         let mut cost = 0;
+
         for x in 0..Self::BOARD_MAX_NUMBER {
-            let mut missing_values_in_row = Self::valid_values();
-            let mut missing_values_in_column = Self::valid_values();
-
-            for y in 0..Self::BOARD_MAX_NUMBER {
-                let row_value = self.cells[x][y].value;
-                let column_value = self.cells[y][x].value;
-
-                if row_value.is_none() {
-                    return Err(format!("Cell {},{} is empty", x, y));
-                } else if column_value.is_none() {
-                    return Err(format!("Cell {},{} is empty", y, x));
-                }
-
-                missing_values_in_row.retain(|&value| value != row_value.unwrap());
-                missing_values_in_column.retain(|&value| value != column_value.unwrap());
-            }
-
-            cost += missing_values_in_row.iter().sum::<CellType>()
-                + missing_values_in_column.iter().sum::<CellType>();
+            cost += self.row_cost(x)?;
+            cost += self.column_cost(x)?;
         }
 
         Ok(cost)
