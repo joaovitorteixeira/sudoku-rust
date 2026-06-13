@@ -108,8 +108,7 @@ impl<'a> BaseAlgorithms<'a> for SimulatedAnnealing<'a> {
         match self.board.validate_solution() {
             Ok(()) => broadcast_board(self.board, &self.board_tx),
             Err(message) => {
-                eprintln!("SA did not find a solution (cost={cost}): {message}");
-                broadcast_board(self.board, &self.board_tx);
+                panic!("SA did not find a solution (cost={cost}): {message}");
             }
         }
 

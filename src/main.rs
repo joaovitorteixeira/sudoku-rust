@@ -1,4 +1,5 @@
 use std::{
+    fmt::Debug,
     fs::read_to_string,
     sync::mpsc,
     thread::{self},
@@ -47,7 +48,7 @@ fn main() {
             broadcast_board(&board, &board_tx);
             let alg = algorithm.unwrap_or(Algorithms::CandidateElection);
 
-            let perf = thread::spawn(move || match alg {
+            let result = thread::spawn(move || match alg {
                 Algorithms::Backtracking => Backtracking::new(&mut board, board_tx).resolve(),
                 Algorithms::CandidateElection => {
                     CandidateElection::new(&mut board, board_tx).resolve()
@@ -56,11 +57,17 @@ fn main() {
                     SimulatedAnnealing::new(&mut board, board_tx).resolve()
                 }
             })
-            .join()
-            .expect("solver thread panicked");
+            .join();
 
-            let _ = game_updater_thread.join();
-            perf.print_summary();
+            match result {
+                Ok(perf) => {
+                    let _ = game_updater_thread.join();
+                    perf.print_summary();
+                }
+                Err(_) => {
+                    return;
+                }
+            };
         }
         Err(message) => panic!("{message}"),
     }
