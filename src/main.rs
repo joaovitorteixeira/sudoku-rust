@@ -31,7 +31,7 @@ mod sudoku;
 
 fn main() {
     let (board_tx, board_rx) = mpsc::channel::<CliChannelEvent>();
-    let (throttle_ms, algorithm) = read_args();
+    let (throttle_ms, algorithm, sleep_ms) = read_args();
     let board_file_result = read_file("input.txt".to_owned());
     let board_file = match board_file_result {
         Ok(board_file) => board_file,
@@ -49,12 +49,14 @@ fn main() {
             let alg = algorithm.unwrap_or(Algorithms::CandidateElection);
 
             let result = thread::spawn(move || match alg {
-                Algorithms::Backtracking => Backtracking::new(&mut board, board_tx).resolve(),
+                Algorithms::Backtracking => {
+                    Backtracking::new(&mut board, board_tx, sleep_ms).resolve()
+                }
                 Algorithms::CandidateElection => {
-                    CandidateElection::new(&mut board, board_tx).resolve()
+                    CandidateElection::new(&mut board, board_tx, sleep_ms).resolve()
                 }
                 Algorithms::SimulatedAnnealing => {
-                    SimulatedAnnealing::new(&mut board, board_tx).resolve()
+                    SimulatedAnnealing::new(&mut board, board_tx, sleep_ms).resolve()
                 }
             })
             .join();
@@ -73,10 +75,11 @@ fn main() {
     }
 }
 
-fn read_args() -> (Option<u64>, Option<Algorithms>) {
+fn read_args() -> (Option<u64>, Option<Algorithms>, Option<u64>) {
     let mut throttle_ms: Option<u64> = None;
     let mut algorithm: Option<Algorithms> = None;
     let mut args = std::env::args().skip(1);
+    let mut sleep_ms: Option<u64> = None;
 
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -101,11 +104,18 @@ fn read_args() -> (Option<u64>, Option<Algorithms>) {
                     }
                 }
             }
+            "--sleep-ms" => {
+                if let Some(val) = args.next() {
+                    if let Ok(v) = val.parse::<u64>() {
+                        sleep_ms = Some(v);
+                    }
+                }
+            }
             _ => {}
         }
     }
 
-    (throttle_ms, algorithm)
+    (throttle_ms, algorithm, sleep_ms)
 }
 
 fn read_file(file_path: String) -> Result<Vec<Vec<Option<CellType>>>, String> {

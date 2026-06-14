@@ -9,7 +9,11 @@ use crate::{
 };
 
 pub trait BaseAlgorithms<'a> {
-    fn new(sudoku_board: &'a mut SudokuBoard, board_tx: Sender<CliChannelEvent>) -> Self;
+    fn new(
+        sudoku_board: &'a mut SudokuBoard,
+        board_tx: Sender<CliChannelEvent>,
+        sleep_ms: Option<u64>,
+    ) -> Self;
     fn resolve(self) -> PerfTracker;
 
     fn update_and_incr(
@@ -19,6 +23,7 @@ pub trait BaseAlgorithms<'a> {
         x: usize,
         y: usize,
         value: Option<CellType>,
+        sleep_ms: Option<u64>,
     ) -> bool {
         let res = board.set_cell(x, y, value);
         perf.incr();
@@ -31,6 +36,7 @@ pub trait BaseAlgorithms<'a> {
             }
         }
 
+        perf.sleep(sleep_ms);
         is_ok
     }
 }

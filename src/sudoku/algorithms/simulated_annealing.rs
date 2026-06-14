@@ -15,12 +15,14 @@ pub struct SimulatedAnnealing<'a> {
     perf: PerfTracker,
     temperature: f64,
     markov_chain_length: usize,
+    sleep_ms: Option<u64>,
 }
 
 impl<'a> BaseAlgorithms<'a> for SimulatedAnnealing<'a> {
     fn new(
         sudoku_board: &'a mut crate::sudoku::board::SudokuBoard,
         board_tx: std::sync::mpsc::Sender<CliChannelEvent>,
+        sleep_ms: Option<u64>,
     ) -> Self {
         let editable_by_box = std::array::from_fn(|box_i| {
             std::array::from_fn(|box_j| {
@@ -41,6 +43,7 @@ impl<'a> BaseAlgorithms<'a> for SimulatedAnnealing<'a> {
             perf: PerfTracker::new(),
             temperature: 1.0,
             markov_chain_length,
+            sleep_ms,
         }
     }
 
@@ -197,6 +200,7 @@ impl<'a> SimulatedAnnealing<'a> {
 
         if record_perf {
             self.perf.incr();
+            self.perf.sleep(self.sleep_ms);
         }
 
         (old_value1, old_value2)
