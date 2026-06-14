@@ -1,19 +1,34 @@
 # sudoku-rust
 
-![Backtrack Solution](./asset/trim.gif)
+![Solver animation](./asset/trim.gif)
 
-A small Sudoku solver written in Rust as a learning project. The goal of this
-repository is to practice Rust idioms (ownership, borrowing, threads, channels)
-while implementing a working Sudoku solver and a tiny CLI-based UI.
+A 9×9 Sudoku solver written in Rust as a learning project. The focus is on Rust
+idioms (ownership, borrowing, threads, channels) while building working solvers
+and a small CLI that visualizes the board as it is filled in.
 
-The solver uses a backtracking algorithm and a small performance tracker to
-report how many actions were attempted and the elapsed time.
+Three algorithms are included:
+
+| Algorithm | CLI flag | Notes |
+|-----------|----------|-------|
+| **Candidate election** (default) | `ce`, `candidate` | Backtracking with precomputed candidates per cell |
+| **Backtracking** | `bt`, `backtracking` | Straightforward try-and-backtrack |
+| **Simulated annealing** | `sa`, `simulatedannealing` | Stochastic search based on [Lewis (2007)](https://rhydlewis.eu/papers/META_CAN_SOLVE_SUDOKU.pdf); fast on typical puzzles, may not finish hard ones |
+
+After each run, perf stats are printed to stderr:
+
+```
+Perf: actions=118849 elapsed=0.034960s
+```
 
 ## Input format
 
 Provide a 9-line text file (default: `input.txt`) where each line has 9
-characters. Digits `1`..`9` represent fixed cell values. Any non-digit
-character (commonly `?`) is treated as an empty cell. Example:
+characters:
+
+- Digits `1`–`9` — fixed (given) cells
+- Any non-digit (commonly `?` or `.`) — empty cell
+
+Example (`example/expert.txt`):
 
 ```
 ??173???2
@@ -27,55 +42,54 @@ character (commonly `?`) is treated as an empty cell. Example:
 ??9??????
 ```
 
-There are example puzzles in the `example/` folder.
-## Build & run
+Example puzzles in `example/`:
 
-This project uses Cargo. From the repository root:
+| File | Difficulty |
+|------|------------|
+| `easy.txt` | Easy |
+| `wikipedia.txt` | Medium (classic Wikipedia example) |
+| `expert.txt` | Hard |
+
+Copy one to `input.txt` before running, e.g. `cp example/wikipedia.txt input.txt`.
+
+## Build & run
 
 ```bash
 cargo build --release
-```
-
-To run the solver using the default `input.txt` file:
-
-```bash
+cp example/wikipedia.txt input.txt
 cargo run --release
 ```
 
-CLI options:
+### CLI options
 
-- `--throttle-ms <ms>` — set the throttle interval in milliseconds for board
-	print updates. Defaults to 100ms if a value is not provided.
-- `--algorithm <name>` or `-a <name>` — select which solving algorithm to
-	use. Accepted values:
-	- `backtracking` or `bt` — run the straightforward backtracking solver.
-	- `candidate`, `candidateelection` or `ce` — run the candidate-election
-	  solver (default).
+- `--throttle-ms <ms>` — delay between live board updates (default: 100). Only
+  affects backtracking and candidate election; simulated annealing updates the
+  board once at the end.
+- `--algorithm <name>` / `-a <name>` — solver to use (see table above).
 
 Examples:
 
-Run the solver with a 50ms throttle interval:
-
 ```bash
+# Candidate election with faster UI updates
 cargo run --release -- --throttle-ms 50
+
+# Backtracking
+cargo run --release -- -a bt
+
+# Simulated annealing
+cargo run --release -- -a sa
 ```
 
-Run using the backtracking algorithm:
-
-```bash
-cargo run --release -- --algorithm backtracking
-```
-
-Notes: the project prints an ANSI-coloured board. Fixed (given) digits are
-printed in blue, solver-filled digits in yellow, and unknown cells in red.
+The terminal prints an ANSI-coloured 9×9 grid: fixed digits in **blue**,
+solver-filled digits in **yellow**, empty cells as **?** in red.
 
 ## References
 
-- Sudoku solving algorithms — Wikipedia: https://en.wikipedia.org/wiki/Sudoku_solving_algorithms
-- Play Sudoku (NYT): https://www.nytimes.com/puzzles/sudoku
+- Sudoku solving algorithms — [Wikipedia](https://en.wikipedia.org/wiki/Sudoku_solving_algorithms)
+- Simulated annealing for Sudoku — [Lewis (2007)](https://rhydlewis.eu/papers/META_CAN_SOLVE_SUDOKU.pdf)
+- [NYT Sudoku](https://www.nytimes.com/puzzles/sudoku)
 
-## License / Notes
+## License / notes
 
-This repository was created for learning and experimentation. You're free to
-use the code for personal projects and study.
-
+This repository is for learning and experimentation. You're free to use the
+code for personal projects and study.
