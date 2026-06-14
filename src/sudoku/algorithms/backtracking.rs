@@ -55,9 +55,7 @@ impl<'a> BaseAlgorithms<'a> for Backtracking<'a> {
                     break;
                 } else {
                     if current_value.unwrap() >= SudokuBoard::BOARD_MAX_NUMBER as CellType {
-                        let _ = board.set_cell(x, y, None).unwrap();
-                        perf.incr();
-
+                        Self::unset_cell(board, &this.board_tx, &mut perf, x, y, this.sleep_ms);
                         backtrack_index -= 1;
                         (x, y) = this.editable_cells[backtrack_index];
                         let cell = board.find_cell_from_coordinates(x, y).unwrap();
@@ -73,8 +71,7 @@ impl<'a> BaseAlgorithms<'a> for Backtracking<'a> {
             }
 
             if current_value.unwrap() > SudokuBoard::BOARD_MAX_NUMBER as CellType {
-                let _ = board.set_cell(x, y, None).unwrap();
-                perf.incr();
+                Self::unset_cell(board, &this.board_tx, &mut perf, x, y, this.sleep_ms);
                 backtrack_index -= 1;
             }
         }

@@ -123,8 +123,7 @@ impl<'a> BaseAlgorithms<'a> for CandidateElection<'a> {
             }
 
             if index >= candidate_len {
-                let _ = this.board.set_cell(x, y, None).unwrap();
-                perf.incr();
+               Self::unset_cell(this.board, &this.board_tx, &mut perf, x, y, this.sleep_ms); 
                 backtrack_index -= 1;
             }
         }

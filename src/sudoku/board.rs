@@ -74,7 +74,12 @@ impl SudokuBoard {
         Ok(&self.cells[x][y])
     }
 
-    pub fn set_cell(&mut self, x: usize, y: usize, value: Option<CellType>) -> Result<(), String> {
+    pub fn set_cell(
+        &mut self,
+        x: usize,
+        y: usize,
+        value: Option<CellType>,
+    ) -> Result<SudokuCell, String> {
         if x >= Self::BOARD_MAX_NUMBER || y >= Self::BOARD_MAX_NUMBER {
             return Err(format!("Invalid coordinates ({}, {})", x, y));
         }
@@ -84,7 +89,7 @@ impl SudokuBoard {
         }
 
         self.cells[x][y].value = value;
-        Ok(())
+        Ok(self.cells[x][y])
     }
 
     pub fn set_cell_unchecked(
